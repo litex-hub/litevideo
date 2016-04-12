@@ -1,9 +1,11 @@
+from functools import reduce
+from operator import or_
+
 from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 
-from litevideo.compat import * # XXX
 from litevideo.hdmi_in.common import control_tokens
 
 
@@ -27,7 +29,7 @@ class CharSync(Module, AutoCSR):
         control_position = Signal(max=10)
         self.sync.pix += found_control.eq(0)
         for i in range(10):
-            self.sync.pix += If(optree("|", [raw[i:i+10] == t for t in control_tokens]),
+            self.sync.pix += If(reduce(or_, [raw[i:i+10] == t for t in control_tokens]),
                   found_control.eq(1),
                   control_position.eq(i)
             )

@@ -1,3 +1,6 @@
+from functools import reduce
+from operator import or_, add
+
 from litex.gen import *
 from litex.gen.genlib.cdc import PulseSynchronizer
 
@@ -30,13 +33,13 @@ class WER(Module, AutoCSR):
         transitions = Signal(8)
         self.comb += [transitions[i].eq(data_r[i] ^ data_r[i+1]) for i in range(8)]
         transition_count = Signal(max=9)
-        self.sync.pix += transition_count.eq(optree("+", [transitions[i] for i in range(8)]))
+        self.sync.pix += transition_count.eq(reduce(add, [transitions[i] for i in range(8)]))
 
 	# Control data characters are designed to have a large number (7) of
 	# transitions to help the receiver synchronize its clock with the
 	# transmitter clock.
         is_control = Signal()
-        self.sync.pix += is_control.eq(optree("|", [data_r == ct for ct in control_tokens]))
+        self.sync.pix += is_control.eq(reduce(or_, [data_r == ct for ct in control_tokens]))
 
         # (pipeline stage 3)
 	# The TMDS characters selected to represent pixel data contain five or

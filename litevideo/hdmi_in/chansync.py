@@ -1,3 +1,6 @@
+from functools import reduce
+from operator import or_, and_
+
 from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg
 from litex.gen.genlib.fifo import _inc
@@ -5,7 +8,6 @@ from litex.gen.genlib.record import Record, layout_len
 
 from litex.soc.interconnect.csr import *
 
-from litevideo.compat import * # XXX
 from litevideo.hdmi_in.common import channel_layout
 
 
@@ -74,8 +76,8 @@ class ChanSync(Module, AutoCSR):
 
         some_control = Signal()
         self.comb += [
-            all_control.eq(optree("&", lst_control)),
-            some_control.eq(optree("|", lst_control))
+            all_control.eq(reduce(and_, lst_control)),
+            some_control.eq(reduce(or_, lst_control))
         ]
         self.sync.pix += If(~self.valid_i,
                 self.chan_synced.eq(0)
