@@ -17,7 +17,7 @@ class _SyncBuffer(Module):
         self.dout = Signal(width)
         self.re = Signal()
 
-        ###
+        # # #
 
         produce = Signal(max=depth)
         consume = Signal(max=depth)
@@ -59,9 +59,10 @@ class ChanSync(Module, AutoCSR):
             data_out = Record(channel_layout, name=name)
             setattr(self, name, data_out)
 
-            ###
+            # # #
 
-            syncbuffer = ClockDomainsRenamer("pix")(_SyncBuffer(layout_len(channel_layout), depth))
+            syncbuffer = _SyncBuffer(layout_len(channel_layout), depth)
+            syncbuffer = ClockDomainsRenamer("pix")(syncbuffer)
             self.submodules += syncbuffer
             self.comb += [
                 syncbuffer.din.eq(data_in.raw_bits()),
@@ -79,7 +80,8 @@ class ChanSync(Module, AutoCSR):
             all_control.eq(reduce(and_, lst_control)),
             some_control.eq(reduce(or_, lst_control))
         ]
-        self.sync.pix += If(~self.valid_i,
+        self.sync.pix += \
+            If(~self.valid_i,
                 self.chan_synced.eq(0)
             ).Else(
                 If(some_control,
@@ -91,45 +93,3 @@ class ChanSync(Module, AutoCSR):
                 )
             )
         self.specials += MultiReg(self.chan_synced, self._channels_synced.status)
-
-
-class _TB(Module):
-    def __init__(self, test_seq_it):
-        self.test_seq_it = test_seq_it
-
-        self.submodules.chansync = ClockDomainsRenamer({"pix": "sys"})(ChanSync())
-        self.comb += self.chansync.valid_i.eq(1)
-
-    def do_simulation(self, selfp):
-        try:
-            de0, de1, de2 = next(self.test_seq_it)
-        except StopIteration:
-            raise StopSimulation
-
-        selfp.chansync.data_in0.de = de0
-        selfp.chansync.data_in1.de = de1
-        selfp.chansync.data_in2.de = de2
-        selfp.chansync.data_in0.d = selfp.simulator.cycle_counter
-        selfp.chansync.data_in1.d = selfp.simulator.cycle_counter
-        selfp.chansync.data_in2.d = selfp.simulator.cycle_counter
-
-        out0 = selfp.chansync.data_out0.d
-        out1 = selfp.chansync.data_out1.d
-        out2 = selfp.chansync.data_out2.d
-
-        print("{0:5} {1:5} {2:5}".format(out0, out1, out2))
-
-if __name__ == "__main__":
-    from litex.gen.sim.generic import run_simulation
-
-    test_seq = [
-        (1, 1, 1),
-        (1, 1, 0),
-        (0, 0, 0),
-        (0, 0, 0),
-        (0, 0, 1),
-        (1, 1, 1),
-        (1, 1, 1),
-    ]
-    tb = _TB(iter(test_seq*2))
-    run_simulation(tb)

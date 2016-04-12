@@ -22,10 +22,12 @@ class Clocking(Module, AutoCSR):
         self.clock_domains._cd_pix2x = ClockDomain()
         self.clock_domains._cd_pix10x = ClockDomain(reset_less=True)
 
-        ###
+        # # #
 
         clk_se = Signal()
-        self.specials += Instance("IBUFDS", i_I=pads.clk_p, i_IB=pads.clk_n, o_O=clk_se)
+        self.specials += Instance("IBUFDS",
+                                  i_I=pads.clk_p, i_IB=pads.clk_n,
+                                  o_O=clk_se)
 
         clkfbout = Signal()
         pll_locked = Signal()

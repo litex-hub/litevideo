@@ -23,27 +23,27 @@ class WER(Module, AutoCSR):
 
         ###
         # (pipeline stage 1)
-	# We ignore the 10th (inversion) bit, as it is independent of the
-	# transition minimization.
+        # We ignore the 10th (inversion) bit, as it is independent of the
+        # transition minimization.
         data_r = Signal(9)
         self.sync.pix += data_r.eq(self.data[:9])
 
         # (pipeline stage 2)
-	# Count the number of transitions in the TMDS word.
+        # Count the number of transitions in the TMDS word.
         transitions = Signal(8)
         self.comb += [transitions[i].eq(data_r[i] ^ data_r[i+1]) for i in range(8)]
         transition_count = Signal(max=9)
         self.sync.pix += transition_count.eq(reduce(add, [transitions[i] for i in range(8)]))
 
-	# Control data characters are designed to have a large number (7) of
-	# transitions to help the receiver synchronize its clock with the
-	# transmitter clock.
+        # Control data characters are designed to have a large number (7) of
+        # transitions to help the receiver synchronize its clock with the
+        # transmitter clock.
         is_control = Signal()
         self.sync.pix += is_control.eq(reduce(or_, [data_r == ct for ct in control_tokens]))
 
         # (pipeline stage 3)
-	# The TMDS characters selected to represent pixel data contain five or
-	# fewer transitions.
+        # The TMDS characters selected to represent pixel data contain five or
+        # fewer transitions.
         is_error = Signal()
         self.sync.pix += is_error.eq((transition_count > 4) & ~is_control)
 

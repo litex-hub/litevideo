@@ -18,7 +18,7 @@ class CharSync(Module, AutoCSR):
         self._char_synced = CSRStatus()
         self._ctl_pos = CSRStatus(bits_for(9))
 
-        ###
+        # # #
 
         raw_data1 = Signal(10)
         self.sync.pix += raw_data1.eq(self.raw_data)
@@ -51,7 +51,9 @@ class CharSync(Module, AutoCSR):
             ),
             previous_control_position.eq(control_position)
         ]
-        self.specials += MultiReg(self.synced, self._char_synced.status)
-        self.specials += MultiReg(word_sel, self._ctl_pos.status)
+        self.specials += [
+            MultiReg(self.synced, self._char_synced.status),
+            MultiReg(word_sel, self._ctl_pos.status)
+        ]
 
         self.sync.pix += self.data.eq(raw >> word_sel)

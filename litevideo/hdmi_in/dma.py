@@ -16,9 +16,11 @@ class _Slot(Module, AutoCSR):
         self.address_done = Signal()
 
         self._status = CSRStorage(2, write_from_dev=True)
-        self._address = CSRStorage(addr_bits + alignment_bits, alignment_bits=alignment_bits, write_from_dev=True)
+        self._address = CSRStorage(addr_bits + alignment_bits,
+                                   alignment_bits=alignment_bits,
+                                   write_from_dev=True)
 
-        ###
+        # # #
 
         self.comb += [
             self.address.eq(self._address.storage),
@@ -39,7 +41,7 @@ class _SlotArray(Module, AutoCSR):
         self.address_valid = Signal()
         self.address_done = Signal()
 
-        ###
+        # # #
 
         slots = [_Slot(addr_bits, alignment_bits) for i in range(nslots)]
         for n, slot in enumerate(slots):
@@ -49,7 +51,8 @@ class _SlotArray(Module, AutoCSR):
 
         change_slot = Signal()
         current_slot = Signal(max=nslots)
-        self.sync += If(change_slot, [If(slot.address_valid, current_slot.eq(n)) for n, slot in reversed(list(enumerate(slots)))])
+        self.sync += If(change_slot, [If(slot.address_valid, current_slot.eq(n))
+                         for n, slot in reversed(list(enumerate(slots)))])
         self.comb += change_slot.eq(~self.address_valid | self.address_done)
 
         self.comb += [
@@ -57,7 +60,8 @@ class _SlotArray(Module, AutoCSR):
             self.address_valid.eq(Array(slot.address_valid for slot in slots)[current_slot])
         ]
         self.comb += [slot.address_reached.eq(self.address_reached) for slot in slots]
-        self.comb += [slot.address_done.eq(self.address_done & (current_slot == n)) for n, slot in enumerate(slots)]
+        self.comb += [slot.address_done.eq(self.address_done & (current_slot == n))
+                          for n, slot in enumerate(slots)]
 
 
 class DMA(Module):
@@ -68,13 +72,15 @@ class DMA(Module):
 
         fifo_word_width = bus_dw
         self.frame = stream.Endpoint([("sof", 1), ("pixels", fifo_word_width)])
-        self._frame_size = CSRStorage(bus_aw + alignment_bits, alignment_bits=alignment_bits)
+        self._frame_size = CSRStorage(bus_aw + alignment_bits,
+                                      alignment_bits=alignment_bits)
         self.submodules._slot_array = _SlotArray(nslots, bus_aw, alignment_bits)
         self.ev = self._slot_array.ev
 
-        ###
+        # # #
 
-        # address generator + maximum memory word count to prevent DMA buffer overrun
+        # address generator + maximum memory word count to prevent DMA buffer
+        # overrun
         reset_words = Signal()
         count_word = Signal()
         last_word = Signal()
@@ -113,8 +119,13 @@ class DMA(Module):
 
         fsm.act("WAIT_SOF",
             reset_words.eq(1),
-            self.frame.ready.eq(~self._slot_array.address_valid | ~self.frame.sof),
-            If(self._slot_array.address_valid & self.frame.sof & self.frame.valid, NextState("TRANSFER_PIXELS"))
+            self.frame.ready.eq(~self._slot_array.address_valid |
+                                ~self.frame.sof),
+            If(self._slot_array.address_valid &
+               self.frame.sof &
+               self.frame.valid,
+               NextState("TRANSFER_PIXELS")
+            )
         )
         fsm.act("TRANSFER_PIXELS",
             self.frame.ready.eq(self._bus_accessor.address_data.ready),
@@ -122,7 +133,9 @@ class DMA(Module):
                 self._bus_accessor.address_data.valid.eq(1),
                 If(self._bus_accessor.address_data.ready,
                     count_word.eq(1),
-                    If(last_word, NextState("EOF"))
+                    If(last_word,
+                        NextState("EOF")
+                    )
                 )
             )
         )

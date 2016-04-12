@@ -2,6 +2,7 @@ from litex import *
 from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
 from litex.soc.interconnect.csr import *
 
+
 class DataCapture(Module, AutoCSR):
     def __init__(self, pad_p, pad_n, ntbits):
         self.serdesstrobe = Signal()
@@ -12,11 +13,13 @@ class DataCapture(Module, AutoCSR):
         self._phase = CSRStatus(2)
         self._phase_reset = CSR()
 
-        ###
+        # # #
 
         # IO
         pad_se = Signal()
-        self.specials += Instance("IBUFDS", i_I=pad_p, i_IB=pad_n, o_O=pad_se)
+        self.specials += Instance("IBUFDS",
+                                  i_I=pad_p, i_IB=pad_n,
+                                  o_O=pad_se)
 
         pad_delayed_master = Signal()
         pad_delayed_slave = Signal()
@@ -147,7 +150,9 @@ class DataCapture(Module, AutoCSR):
 
         sys_delay_master_pending = Signal()
         self.sync += [
-            If(self.do_delay_master_cal.i | self.do_delay_inc.i | self.do_delay_dec.i,
+            If(self.do_delay_master_cal.i |
+               self.do_delay_inc.i |
+               self.do_delay_dec.i,
                 sys_delay_master_pending.eq(1)
             ).Elif(self.delay_master_done.o,
                 sys_delay_master_pending.eq(0)
@@ -155,7 +160,9 @@ class DataCapture(Module, AutoCSR):
         ]
         sys_delay_slave_pending = Signal()
         self.sync += [
-            If(self.do_delay_slave_cal.i | self.do_delay_inc.i | self.do_delay_dec.i,
+            If(self.do_delay_slave_cal.i |
+               self.do_delay_inc.i |
+               self.do_delay_dec.i,
                 sys_delay_slave_pending.eq(1)
             ).Elif(self.delay_slave_done.o,
                 sys_delay_slave_pending.eq(0)
@@ -169,7 +176,8 @@ class DataCapture(Module, AutoCSR):
             self.do_delay_slave_rst.i.eq(self._dly_ctl.re & self._dly_ctl.r[3]),
             self.do_delay_inc.i.eq(self._dly_ctl.re & self._dly_ctl.r[4]),
             self.do_delay_dec.i.eq(self._dly_ctl.re & self._dly_ctl.r[5]),
-            self._dly_busy.status.eq(Cat(sys_delay_master_pending, sys_delay_slave_pending))
+            self._dly_busy.status.eq(Cat(sys_delay_master_pending,
+                                         sys_delay_slave_pending))
         ]
 
         # Phase detector control

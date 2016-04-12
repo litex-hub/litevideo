@@ -8,7 +8,8 @@ from litevideo.hdmi_in.charsync import CharSync
 from litevideo.hdmi_in.wer import WER
 from litevideo.hdmi_in.decoding import Decoding
 from litevideo.hdmi_in.chansync import ChanSync
-from litevideo.hdmi_in.analysis import SyncPolarity, ResolutionDetection, FrameExtraction
+from litevideo.hdmi_in.analysis import SyncPolarity, ResolutionDetection
+from litevideo.hdmi_in.analysis import FrameExtraction
 from litevideo.hdmi_in.dma import DMA
 
 
@@ -20,7 +21,9 @@ class HDMIIn(Module, AutoCSR):
         for datan in range(3):
             name = "data" + str(datan)
 
-            cap = DataCapture(getattr(pads, name + "_p"), getattr(pads, name + "_n"), 8)
+            cap = DataCapture(getattr(pads, name + "_p"),
+                              getattr(pads, name + "_n"),
+                              8)
             setattr(self.submodules, name + "_cap", cap)
             self.comb += cap.serdesstrobe.eq(self.clocking.serdesstrobe)
 
@@ -41,11 +44,12 @@ class HDMIIn(Module, AutoCSR):
 
         self.submodules.chansync = ChanSync()
         self.comb += [
-            self.chansync.valid_i.eq(self.data0_decod.valid_o & \
-              self.data1_decod.valid_o & self.data2_decod.valid_o),
+            self.chansync.valid_i.eq(self.data0_decod.valid_o &
+                                     self.data1_decod.valid_o &
+                                     self.data2_decod.valid_o),
             self.chansync.data_in0.eq(self.data0_decod.output),
             self.chansync.data_in1.eq(self.data1_decod.output),
-            self.chansync.data_in2.eq(self.data2_decod.output),
+            self.chansync.data_in2.eq(self.data2_decod.output)
         ]
 
         self.submodules.syncpol = SyncPolarity()

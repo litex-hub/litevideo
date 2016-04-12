@@ -8,6 +8,7 @@ from litevideo.hdmi_in.common import channel_layout
 from litevideo.csc.rgb2ycbcr import RGB2YCbCr
 from litevideo.csc.ycbcr444to422 import YCbCr444to422
 
+
 class SyncPolarity(Module):
     def __init__(self):
         self.valid_i = Signal()
@@ -23,7 +24,7 @@ class SyncPolarity(Module):
         self.g = Signal(8)
         self.b = Signal(8)
 
-        ###
+        # # #
 
         de = self.data_in0.de
         de_r = Signal()
@@ -62,7 +63,7 @@ class ResolutionDetection(Module, AutoCSR):
         self._hres = CSRStatus(nbits)
         self._vres = CSRStatus(nbits)
 
-        ###
+        # # #
 
         # Detect DE transitions
         de_r = Signal()
@@ -72,14 +73,16 @@ class ResolutionDetection(Module, AutoCSR):
 
         # HRES
         hcounter = Signal(nbits)
-        self.sync.pix += If(self.valid_i & self.de,
+        self.sync.pix += \
+            If(self.valid_i & self.de,
                 hcounter.eq(hcounter + 1)
             ).Else(
                 hcounter.eq(0)
             )
 
         hcounter_st = Signal(nbits)
-        self.sync.pix += If(self.valid_i,
+        self.sync.pix += \
+            If(self.valid_i,
                 If(pn_de, hcounter_st.eq(hcounter))
             ).Else(
                 hcounter_st.eq(0)
@@ -93,14 +96,16 @@ class ResolutionDetection(Module, AutoCSR):
         self.comb += p_vsync.eq(self.vsync & ~vsync_r)
 
         vcounter = Signal(nbits)
-        self.sync.pix += If(self.valid_i & p_vsync,
+        self.sync.pix += \
+            If(self.valid_i & p_vsync,
                 vcounter.eq(0)
             ).Elif(pn_de,
                 vcounter.eq(vcounter + 1)
             )
 
         vcounter_st = Signal(nbits)
-        self.sync.pix += If(self.valid_i,
+        self.sync.pix += \
+            If(self.valid_i,
                 If(p_vsync, vcounter_st.eq(vcounter))
             ).Else(
                 vcounter_st.eq(0)
@@ -125,7 +130,7 @@ class FrameExtraction(Module, AutoCSR):
 
         self._overflow = CSR()
 
-        ###
+        # # #
 
         de_r = Signal()
         self.sync.pix += de_r.eq(self.de)
@@ -165,7 +170,8 @@ class FrameExtraction(Module, AutoCSR):
         cur_word = Signal(word_width)
         cur_word_valid = Signal()
         encoded_pixel = Signal(16)
-        self.comb += encoded_pixel.eq(Cat(chroma_downsampler.source.y, chroma_downsampler.source.cb_cr)),
+        self.comb += encoded_pixel.eq(Cat(chroma_downsampler.source.y,
+                                          chroma_downsampler.source.cb_cr)),
         pack_factor = word_width//16
         assert(pack_factor & (pack_factor - 1) == 0)  # only support powers of 2
         pack_counter = Signal(max=pack_factor)
@@ -183,7 +189,8 @@ class FrameExtraction(Module, AutoCSR):
         ]
 
         # FIFO
-        fifo = ClockDomainsRenamer({"write": "pix", "read": "sys"})(stream.AsyncFIFO(word_layout, fifo_depth))
+        fifo = stream.AsyncFIFO(word_layout, fifo_depth)
+        fifo = ClockDomainsRenamer({"write": "pix", "read": "sys"})(fifo)
         self.submodules += fifo
         self.comb += [
             fifo.sink.pixels.eq(cur_word),
