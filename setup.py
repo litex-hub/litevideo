@@ -12,7 +12,7 @@ if sys.version_info[:3] < (3, 3):
 setup(
     name="litevideo",
 	version="0.1",
-    description="Small footprint and configurable video in/out cores",
+    description="Small footprint and configurable video cores",
 	long_description=open("README").read(),
 	author="Florent Kermarrec",
 	author_email="florent@enjoy-digital.fr",
