@@ -4,9 +4,11 @@
         /____/_/\__/\__/|___/_/\_,_/\__/\___/
 
              Copyright 2016 / EnjoyDigital
+             Copyright 2016 / TimVideos.us
+            Copyright 2014-2015 / M-Labs Ltd
 
         Small footprint and configurable
-               Video In/Out cores
+               video in/out cores
 
               ********************
               * WORK IN PROGRESS *
@@ -14,8 +16,8 @@
 
 [> Intro
 ---------
-LiteVideo aims to create a FPGA Video In/Out cores (HDMI/VGA/DisplayPort...)
-based on initial work from M-Labs for the Mixxeo board.
+LiteVideo aims to create a FPGA video in/out cores (HDMI/VGA/DisplayPort...)
+based on initial M-Labs initial work for the Mixxeo board.
 
 This is a work in progress.
 
