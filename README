@@ -1,0 +1,69 @@
+           __   _ __     _   ___    __
+          / /  (_) /____| | / (_)__/ /__ ___
+         / /__/ / __/ -_) |/ / / _  / -_) _ \
+        /____/_/\__/\__/|___/_/\_,_/\__/\___/
+
+             Copyright 2016 / EnjoyDigital
+
+        Small footprint and configurable
+               Video In/Out cores
+
+              ********************
+              * WORK IN PROGRESS *
+              ********************
+
+[> Intro
+---------
+LiteVideo aims to create a FPGA Video In/Out cores (HDMI/VGA/DisplayPort...)
+based on initial work from M-Labs for the Mixxeo board.
+
+This is a work in progress.
+
+[> Features
+------------
+TODO
+
+[> Possible improvements
+-------------------------
+TODO
+
+[> Getting started
+-------------------
+TODO
+
+[> Simulations
+---------------
+TODO
+
+[> Tests
+---------
+TODO
+
+[> License
+-----------
+LiteVideo is released under the very permissive two-clause BSD license. Under the
+terms of this license, you are authorized to use LiteVideo for closed-source
+proprietary designs.
+Even though we do not require you to do so, those things are awesome, so please
+do them if possible:
+ - tell us that you are using LiteVideo
+ - cite LiteVideo in publications related to research it has helped
+ - send us feedback and suggestions for improvements
+ - send us bug reports when something goes wrong
+ - send us the modifications and improvements you have done to LiteVideo.
+
+[> Support and consulting
+--------------------------
+We love open-source hardware and like sharing our designs with others.
+
+LiteVideo is developed and maintained by EnjoyDigital.
+
+If you would like to know more about LiteVideo or if you are already a happy user
+and would like to extend it for your needs, EnjoyDigital can provide standard
+commercial support as well as consulting services.
+
+So feel free to contact us, we'd love to work with you! (and eventually shorten
+the list of the possible improvements :)
+
+[> Contact
+E-mail: florent [AT] enjoy-digital.fr
