@@ -12,37 +12,41 @@ class HDMIOut(Module, AutoCSR):
     def __init__(self, pads, lasmim, external_clocking=None):
         pack_factor = lasmim.dw//bpp
 
-        self.submodules.fi = FrameInitiator(lasmim.aw, pack_factor)
+        self.submodules.fi = fi = FrameInitiator(lasmim.aw, pack_factor)
+        self.submodules.intseq = intseq = IntSequence(lasmim.aw, lasmim.aw)
+        self.submodules.dma_reader = dma_reader = dma_lasmi.Reader(lasmim)
+        self.submodules.vtg = vtg = VTG(pack_factor)
+        self.submodules.driver = driver = Driver(pack_factor, pads, external_clocking)
 
-        self.submodules.intseq = IntSequence(lasmim.aw, lasmim.aw)
-        self.submodules.dma_reader = dma_lasmi.Reader(lasmim)
         self.comb += [
-            self.intseq.sink.valid.eq(self.fi.source.valid),
-            self.intseq.sink.offset.eq(self.fi.source.base0),
-            self.intseq.sink.maximum.eq(self.fi.source.length),
-            self.dma_reader.address.valid.eq(self.intseq.source.valid),
-            self.dma_reader.address.a.eq(self.intseq.source.value),
-            self.intseq.source.ready.eq(self.dma_reader.address.ready),
+            # fi --> intseq
+            intseq.sink.valid.eq(fi.source.valid),
+            intseq.sink.offset.eq(fi.source.base0),
+            intseq.sink.maximum.eq(fi.source.length),
+
+            # fi --> vtg
+            vtg.timing.valid.eq(fi.source.valid),
+            vtg.timing.hres.eq(fi.source.hres),
+            vtg.timing.hsync_start.eq(fi.source.hsync_start),
+            vtg.timing.hsync_end.eq(fi.source.hsync_end),
+            vtg.timing.hscan.eq(fi.source.hscan),
+            vtg.timing.vres.eq(fi.source.vres),
+            vtg.timing.vsync_start.eq(fi.source.vsync_start),
+            vtg.timing.vsync_end.eq(fi.source.vsync_end),
+            vtg.timing.vscan.eq(fi.source.vscan),
+
+            fi.source.ready.eq(intseq.sink.ready & vtg.timing.ready),
+
+            # intseq --> dma_reader
+            dma_reader.sink.valid.eq(intseq.source.valid),
+            dma_reader.sink.address.eq(intseq.source.value),
+            intseq.source.ready.eq(dma_reader.sink.ready),
+
+            # dma_reader --> vtg
+            vtg.pixels.valid.eq(dma_reader.source.valid),
+            vtg.pixels.payload.raw_bits().eq(dma_reader.source.data),
+            dma_reader.source.ready.eq(vtg.pixels.ready),
+
+            # vtg --> driver
+            vtg.phy.connect(driver.phy)
         ]
-
-        self.submodules.vtg = VTG(pack_factor)
-        self.comb += [
-            self.vtg.timing.valid.eq(self.fi.source.valid),
-            self.vtg.timing.hres.eq(self.fi.source.hres),
-            self.vtg.timing.hsync_start.eq(self.fi.source.hsync_start),
-            self.vtg.timing.hsync_end.eq(self.fi.source.hsync_end),
-            self.vtg.timing.hscan.eq(self.fi.source.hscan),
-            self.vtg.timing.vres.eq(self.fi.source.vres),
-            self.vtg.timing.vsync_start.eq(self.fi.source.vsync_start),
-            self.vtg.timing.vsync_end.eq(self.fi.source.vsync_end),
-            self.vtg.timing.vscan.eq(self.fi.source.vscan),
-
-            self.vtg.pixels.valid.eq(self.dma_reader.data.valid),
-            self.dma_reader.data.ready.eq(self.vtg.pixels.ready),
-            self.vtg.pixels.payload.raw_bits().eq(self.dma_reader.data.d)
-        ]
-
-        self.comb += self.fi.source.ready.eq(self.intseq.sink.ready & self.vtg.timing.ready)
-
-        self.submodules.driver = Driver(pack_factor, pads, external_clocking)
-        self.comb += self.vtg.phy.connect(self.driver.phy)

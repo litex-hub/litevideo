@@ -109,8 +109,8 @@ class DMA(Module):
         # bus accessor
         self.submodules._bus_accessor = dma_lasmi.Writer(lasmim)
         self.comb += [
-            self._bus_accessor.address_data.a.eq(current_address),
-            self._bus_accessor.address_data.d.eq(memory_word)
+            self._bus_accessor.source.address.eq(current_address),
+            self._bus_accessor.source.data.eq(memory_word)
         ]
 
         # control FSM
@@ -128,10 +128,10 @@ class DMA(Module):
             )
         )
         fsm.act("TRANSFER_PIXELS",
-            self.frame.ready.eq(self._bus_accessor.address_data.ready),
+            self.frame.ready.eq(self._bus_accessor.source.ready),
             If(self.frame.valid,
-                self._bus_accessor.address_data.valid.eq(1),
-                If(self._bus_accessor.address_data.ready,
+                self._bus_accessor.source.valid.eq(1),
+                If(self._bus_accessor.source.ready,
                     count_word.eq(1),
                     If(last_word,
                         NextState("EOF")
