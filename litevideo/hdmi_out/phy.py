@@ -9,6 +9,7 @@ from litevideo.hdmi_out import hdmi
 from litevideo.csc.ycbcr2rgb import YCbCr2RGB
 from litevideo.csc.ycbcr422to444 import YCbCr422to444
 
+
 class _FIFO(Module):
     def __init__(self, pack_factor):
         self.phy = stream.Endpoint(phy_layout(pack_factor))
@@ -20,7 +21,7 @@ class _FIFO(Module):
         self.pix_y = Signal(bpc_phy)
         self.pix_cb_cr = Signal(bpc_phy)
 
-        ###
+        # # #
 
         fifo = ClockDomainsRenamer({"write": "sys", "read": "pix"})(stream.AsyncFIFO(phy_layout(pack_factor), 512))
         self.submodules += fifo
@@ -68,7 +69,7 @@ class _Clocking(Module, AutoCSR):
             self.clock_domains.cd_pix10x = ClockDomain(reset_less=True)
             self.serdesstrobe = Signal()
 
-            ###
+            # # #
 
             # Generate 1x pixel clock
             clk_pix_unbuffered = Signal()
@@ -224,7 +225,7 @@ class Driver(Module, AutoCSR):
         hsync = fifo.pix_hsync
         vsync = fifo.pix_vsync
         for i in range(chroma_upsampler.latency +
-        	           ycbcr2rgb.latency):
+                       ycbcr2rgb.latency):
             next_de = Signal()
             next_vsync = Signal()
             next_hsync = Signal()

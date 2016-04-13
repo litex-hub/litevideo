@@ -1,3 +1,6 @@
+from functools import reduce
+from operator import add
+
 from litex.gen import *
 
 control_tokens = [0b1101010100, 0b0010101011, 0b0101010100, 0b1010101011]
@@ -11,13 +14,13 @@ class Encoder(Module):
 
         self.out = Signal(10)
 
-        ###
+        # # #
 
         # stage 1 - count number of 1s in data
         d = Signal(8)
         n1d = Signal(max=9)
         self.sync += [
-            n1d.eq(optree("+", [self.d[i] for i in range(8)])),
+            n1d.eq(reduce(add, [self.d[i] for i in range(8)])),
             d.eq(self.d)
         ]
 
@@ -38,8 +41,8 @@ class Encoder(Module):
         n0q_m = Signal(max=9)
         n1q_m = Signal(max=9)
         self.sync += [
-            n0q_m.eq(optree("+", [~q_m[i] for i in range(8)])),
-            n1q_m.eq(optree("+", [q_m[i] for i in range(8)])),
+            n0q_m.eq(reduce(add, [~q_m[i] for i in range(8)])),
+            n1q_m.eq(reduce(add, [q_m[i] for i in range(8)])),
             q_m_r.eq(q_m)
         ]
 
@@ -89,7 +92,7 @@ class _EncoderSerializer(Module):
         self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
         self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
 
-        ###
+        # # #
 
         # 2X soft serialization
         ed_2x = Signal(5)
@@ -140,7 +143,7 @@ class PHY(Module):
         self.g = Signal(8)
         self.b = Signal(8)
 
-        ###
+        # # #
 
         self.submodules.es0 = _EncoderSerializer(serdesstrobe, pads.data0_p, pads.data0_n)
         self.submodules.es1 = _EncoderSerializer(serdesstrobe, pads.data1_p, pads.data1_n)
@@ -156,68 +159,3 @@ class PHY(Module):
             self.es1.de.eq(self.de),
             self.es2.de.eq(self.de),
         ]
-
-
-class _EncoderTB(Module):
-    def __init__(self, inputs):
-        self.outs = []
-        self._iter_inputs = iter(inputs)
-        self._end_cycle = None
-        self.submodules.dut = Encoder()
-        self.comb += self.dut.de.eq(1)
-
-    def do_simulation(self, selfp):
-        if self._end_cycle is None:
-            try:
-                nv = next(self._iter_inputs)
-            except StopIteration:
-                self._end_cycle = selfp.simulator.cycle_counter + 4
-            else:
-                selfp.dut.d = nv
-        if selfp.simulator.cycle_counter == self._end_cycle:
-            raise StopSimulation
-        if selfp.simulator.cycle_counter > 4:
-            self.outs.append(selfp.dut.out)
-
-
-def _bit(i, n):
-    return (i >> n) & 1
-
-
-def _decode_tmds(b):
-    try:
-        c = control_tokens.index(b)
-        de = False
-    except ValueError:
-        c = 0
-        de = True
-    vsync = bool(c & 2)
-    hsync = bool(c & 1)
-
-    value = _bit(b, 0) ^ _bit(b, 9)
-    for i in range(1, 8):
-        value |= (_bit(b, i) ^ _bit(b, i-1) ^ (~_bit(b, 8) & 1)) << i
-
-    return de, hsync, vsync, value
-
-if __name__ == "__main__":
-    from litex.gen.sim.generic import run_simulation
-    from random import Random
-
-    rng = Random(788)
-    test_list = [rng.randrange(256) for i in range(500)]
-    tb = _EncoderTB(test_list)
-    run_simulation(tb)
-
-    check = [_decode_tmds(out)[3] for out in tb.outs]
-    assert(check == test_list)
-
-    nb0 = 0
-    nb1 = 0
-    for out in tb.outs:
-        for i in range(10):
-            if _bit(out, i):
-                nb1 += 1
-            else:
-                nb0 += 1
-    print("0/1: {}/{} ({:.2f})".format(nb0, nb1, nb0/nb1))

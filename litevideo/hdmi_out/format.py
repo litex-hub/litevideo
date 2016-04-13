@@ -1,7 +1,10 @@
 from litex.gen import *
 from litex.gen.genlib.fsm import FSM, NextState
 
+from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import CSRStorage
+
+from litevideo.spi import SingleGenerator, MODE_CONTINUOUS
 
 _hbits = 12
 _vbits = 12
@@ -75,9 +78,8 @@ class VTG(Module):
         self.timing = stream.Endpoint(timing_layout)
         self.pixels = stream.Endpoint(pixel_layout(pack_factor))
         self.phy = stream.Endpoint(phy_layout(pack_factor))
-        self.busy = Signal()
 
-        ###
+        # # #
 
         hactive = Signal()
         vactive = Signal()
@@ -133,13 +135,16 @@ class VTG(Module):
         self.fsm.act("GET_TIMING",
             self.timing.ready.eq(1),
             load_timing.eq(1),
-            If(self.timing.valid, NextState("GENERATE"))
+            If(self.timing.valid,
+                NextState("GENERATE")
+            )
         )
         self.fsm.act("GENERATE",
-            self.busy.eq(1),
             If(~active | self.pixels.valid,
                 self.phy.valid.eq(1),
                 If(self.phy.ready, generate_en.eq(1))
             ),
-            If(generate_frame_done,    NextState("GET_TIMING"))
+            If(generate_frame_done,
+                NextState("GET_TIMING")
+            )
         )
