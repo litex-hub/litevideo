@@ -40,7 +40,7 @@ class HDMIOutCore(Module, AutoCSR):
             vtg.timing.vsync_end.eq(fi.source.vsync_end),
             vtg.timing.vscan.eq(fi.source.vscan),
 
-            fi.source.ready.eq(intseq.sink.ready & vtg.timing.ready),
+            fi.source.ready.eq(vtg.timing.ready),
 
             # intseq --> dma_reader
             dma_reader.sink.valid.eq(intseq.source.valid),
