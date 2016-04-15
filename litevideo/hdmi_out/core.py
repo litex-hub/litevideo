@@ -5,7 +5,7 @@ from litex.soc.interconnect.csr import AutoCSR
 from litex.soc.interconnect import dma_lasmi
 
 from litevideo.spi import IntSequence
-from litevideo.hdmi_out.format import bpp, phy_layout, FrameInitiator, VTG
+from litevideo.hdmi_out.format import bpp, pixel_layout, phy_layout, FrameInitiator, VTG
 
 
 class HDMIOutCore(Module, AutoCSR):
@@ -18,6 +18,9 @@ class HDMIOutCore(Module, AutoCSR):
         self.submodules.fi = fi = FrameInitiator(lasmim.aw, self.pack_factor)
         self.submodules.intseq = intseq = IntSequence(lasmim.aw, lasmim.aw)
         self.submodules.dma_reader = dma_reader = dma_lasmi.Reader(lasmim)
+        self.submodules.cast = cast = stream.Cast(lasmim.dw,
+                                                  pixel_layout(self.pack_factor),
+                                                  reverse_to=True)
         self.submodules.vtg = vtg = VTG(self.pack_factor)
 
         self.comb += [
@@ -44,10 +47,15 @@ class HDMIOutCore(Module, AutoCSR):
             dma_reader.sink.address.eq(intseq.source.value),
             intseq.source.ready.eq(dma_reader.sink.ready),
 
-            # dma_reader --> vtg
-            vtg.pixels.valid.eq(dma_reader.source.valid),
-            vtg.pixels.payload.raw_bits().eq(dma_reader.source.data),
-            dma_reader.source.ready.eq(vtg.pixels.ready),
+            # dma_reader --> cast
+            cast.sink.valid.eq(dma_reader.source.valid),
+            cast.sink.payload.raw_bits().eq(dma_reader.source.data),
+            dma_reader.source.ready.eq(cast.sink.ready),
+
+            # cast --> vtg
+            vtg.pixels.valid.eq(cast.source.valid),
+            vtg.pixels.payload.eq(cast.source.payload),
+            cast.source.ready.eq(vtg.pixels.ready),
 
             # vtg --> source
             vtg.phy.connect(self.source)
