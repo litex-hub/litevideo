@@ -3,7 +3,7 @@ from litex.gen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 
-from litevideo.hdmi_out.encoder import Encoder
+from litevideo.out.hdmi.encoder import Encoder
 
 
 # This assumes a 50MHz base clock

@@ -3,7 +3,7 @@ from litex.gen import *
 from litex.soc.interconnect.stream import *
 from litex.soc.interconnect import lasmi_bus
 
-from litevideo.hdmi_out.core import HDMIOutCore
+from litevideo.out.core import VideoOutCore
 
 
 class TB(Module):
@@ -14,7 +14,7 @@ class TB(Module):
                                           req_queue_size=1,
                                           read_latency=1,
                                           write_latency=1)
-        self.submodules.core = HDMIOutCore(self.lasmim)
+        self.submodules.core = VideoOutCore(self.lasmim)
         self.comb += self.core.source.ready.eq(1)
 
 
