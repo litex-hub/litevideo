@@ -16,25 +16,13 @@ from litevideo.output.hdmi.s6 import S6HDMIOutClocking, S6HDMIOutPHY
 class FrameInitiator(SingleGenerator):
     def __init__(self, bus_aw, pack_factor, ndmas=1):
         h_alignment_bits = log2_int(pack_factor)
-        hbits_dyn = hbits - h_alignment_bits
+        self.hbits_dyn = hbits - h_alignment_bits
         bus_alignment_bits = h_alignment_bits + log2_int(bpp//8)
-        layout = [
-            ("hres", hbits_dyn),
-            ("hsync_start", hbits_dyn),
-            ("hsync_end", hbits_dyn),
-            ("hscan", hbits_dyn),
-            ("vres", vbits),
-            ("vsync_start", vbits),
-            ("vsync_end", vbits),
-            ("vscan", vbits),
-            ("length", bus_aw + bus_alignment_bits)
-        ]
+        layout = timing_layout(self.hbits_dyn)
+        layout +=[("length", bus_aw + bus_alignment_bits)]
         layout += [("base"+str(i), bus_aw + bus_alignment_bits)
             for i in range(ndmas)]
         SingleGenerator.__init__(self, layout, MODE_CONTINUOUS)
-
-    timing_subr = ["hres", "hsync_start", "hsync_end", "hscan",
-        "vres", "vsync_start", "vsync_end", "vscan"]
 
     def dma_subr(self, i=0):
         return ["length", "base"+str(i)]
@@ -43,16 +31,7 @@ class FrameInitiator(SingleGenerator):
 class TimingGenerator(Module):
     def __init__(self, pack_factor):
         hbits_dyn = hbits - log2_int(pack_factor)
-        timing_layout = [
-            ("hres", hbits_dyn),
-            ("hsync_start", hbits_dyn),
-            ("hsync_end", hbits_dyn),
-            ("hscan", hbits_dyn),
-            ("vres", vbits),
-            ("vsync_start", vbits),
-            ("vsync_end", vbits),
-            ("vscan", vbits)]
-        self.timing = stream.Endpoint(timing_layout)
+        self.timing = stream.Endpoint(timing_layout(hbits_dyn))
         self.pixels = stream.Endpoint(pixel_layout(pack_factor))
         self.phy = stream.Endpoint(phy_description(pack_factor))
 
@@ -76,7 +55,7 @@ class TimingGenerator(Module):
         ]
 
         load_timing = Signal()
-        tr = Record(timing_layout)
+        tr = Record(timing_layout(hbits_dyn))
         self.sync += If(load_timing, tr.eq(self.timing.payload))
 
         generate_en = Signal()
@@ -144,6 +123,7 @@ class Driver(Module, AutoCSR):
 
         self.submodules.clocking = clocking_cls[family](pads, external_clocking)
 
+        # fifo / cdc
         fifo = stream.AsyncFIFO(phy_description(pack_factor), 512)
         fifo = ClockDomainsRenamer({"write": "sys", "read": "pix"})(fifo)
         self.submodules += fifo
@@ -157,9 +137,7 @@ class Driver(Module, AutoCSR):
             converter.source.ready.eq(1)
         ]
 
-        valid_r = Signal()
-        self.sync.pix += valid_r.eq(converter.source.valid)
-
+        # ycbcr422 --> rgb444
         chroma_upsampler = YCbCr422to444()
         self.submodules += ClockDomainsRenamer("pix")(chroma_upsampler)
         self.comb += [
@@ -175,7 +153,6 @@ class Driver(Module, AutoCSR):
             ycbcr2rgb.source.ready.eq(1)
         ]
 
-        # XXX need clean up
         valid = converter.source.valid
         hsync = converter.source.hsync
         vsync = converter.source.vsync
@@ -193,6 +170,7 @@ class Driver(Module, AutoCSR):
             vsync = next_vsync
             hsync = next_hsync
 
+        # phy
         self.submodules.hdmi_phy = phy_cls[family](self.clocking.serdesstrobe, pads)
         self.comb += [
             self.hdmi_phy.hsync.eq(hsync),
