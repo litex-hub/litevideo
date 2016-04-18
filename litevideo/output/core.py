@@ -19,19 +19,17 @@ class FrameInitiator(SingleGenerator):
         hbits_dyn = hbits - h_alignment_bits
         bus_alignment_bits = h_alignment_bits + log2_int(bpp//8)
         layout = [
-            ("hres", hbits_dyn, 640, h_alignment_bits),
-            ("hsync_start", hbits_dyn, 656, h_alignment_bits),
-            ("hsync_end", hbits_dyn, 752, h_alignment_bits),
-            ("hscan", hbits_dyn, 800, h_alignment_bits),
-
-            ("vres", vbits, 480),
-            ("vsync_start", vbits, 492),
-            ("vsync_end", vbits, 494),
-            ("vscan", vbits, 525),
-
-            ("length", bus_aw + bus_alignment_bits, 640*480*bpp//8, bus_alignment_bits)
+            ("hres", hbits_dyn),
+            ("hsync_start", hbits_dyn),
+            ("hsync_end", hbits_dyn),
+            ("hscan", hbits_dyn),
+            ("vres", vbits),
+            ("vsync_start", vbits),
+            ("vsync_end", vbits),
+            ("vscan", vbits),
+            ("length", bus_aw + bus_alignment_bits)
         ]
-        layout += [("base"+str(i), bus_aw + bus_alignment_bits, 0, bus_alignment_bits)
+        layout += [("base"+str(i), bus_aw + bus_alignment_bits)
             for i in range(ndmas)]
         SingleGenerator.__init__(self, layout, MODE_CONTINUOUS)
 
