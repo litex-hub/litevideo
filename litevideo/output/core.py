@@ -72,7 +72,6 @@ class TimingGenerator(Module):
             active.eq(hactive & vactive),
             If(active,
                 self.phy.valid.eq(1),
-                self.phy.de.eq(1),
                 self.phy.payload.raw_bits().eq(self.pixels.payload.raw_bits())
             ),
             self.pixels.ready.eq(self.phy.ready & active)
@@ -160,13 +159,13 @@ class Driver(Module, AutoCSR):
             converter.source.ready.eq(1)
         ]
 
-        de_r = Signal()
-        self.sync.pix += de_r.eq(converter.source.de)
+        valid_r = Signal()
+        self.sync.pix += valid_r.eq(converter.source.valid)
 
         chroma_upsampler = YCbCr422to444()
         self.submodules += ClockDomainsRenamer("pix")(chroma_upsampler)
         self.comb += [
-          chroma_upsampler.sink.valid.eq(converter.source.de),
+          chroma_upsampler.sink.valid.eq(converter.source.valid),
           chroma_upsampler.sink.y.eq(converter.source.data[8:]),
           chroma_upsampler.sink.cb_cr.eq(converter.source.data[:8])
         ]
@@ -179,20 +178,20 @@ class Driver(Module, AutoCSR):
         ]
 
         # XXX need clean up
-        de = converter.source.de
+        valid = converter.source.valid
         hsync = converter.source.hsync
         vsync = converter.source.vsync
         for i in range(chroma_upsampler.latency +
                        ycbcr2rgb.latency):
-            next_de = Signal()
+            next_valid = Signal()
             next_vsync = Signal()
             next_hsync = Signal()
             self.sync.pix += [
-                next_de.eq(de),
+                next_valid.eq(valid),
                 next_vsync.eq(vsync),
                 next_hsync.eq(hsync),
             ]
-            de = next_de
+            valid = next_valid
             vsync = next_vsync
             hsync = next_hsync
 
@@ -200,7 +199,7 @@ class Driver(Module, AutoCSR):
         self.comb += [
             self.hdmi_phy.hsync.eq(hsync),
             self.hdmi_phy.vsync.eq(vsync),
-            self.hdmi_phy.de.eq(de),
+            self.hdmi_phy.de.eq(valid),
             self.hdmi_phy.r.eq(ycbcr2rgb.source.r),
             self.hdmi_phy.g.eq(ycbcr2rgb.source.g),
             self.hdmi_phy.b.eq(ycbcr2rgb.source.b)

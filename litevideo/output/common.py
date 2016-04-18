@@ -18,6 +18,6 @@ def pixel_layout(pack_factor):
 bpc_phy = 8
 
 def phy_description(pack_factor):
-    param_layout = [("hsync", 1), ("vsync", 1), ("de", 1)]
+    param_layout = [("hsync", 1), ("vsync", 1)]
     payload_layout = [("data", 2*bpc_phy*pack_factor)]
     return stream.EndpointDescription(payload_layout, param_layout)
