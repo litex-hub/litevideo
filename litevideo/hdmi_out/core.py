@@ -5,7 +5,8 @@ from litex.soc.interconnect.csr import AutoCSR
 from litex.soc.interconnect import dma_lasmi
 
 from litevideo.spi import IntSequence
-from litevideo.hdmi_out.format import bpp, pixel_layout, phy_description, FrameInitiator, VTG
+from litevideo.hdmi_out.format import bpp, pixel_layout, phy_description
+from litevideo.hdmi_out.format import FrameInitiator, VideoTimingGenerator
 
 
 class HDMIOutCore(Module, AutoCSR):
@@ -21,7 +22,7 @@ class HDMIOutCore(Module, AutoCSR):
         self.submodules.cast = cast = stream.Cast(lasmim.dw,
                                                   pixel_layout(self.pack_factor),
                                                   reverse_to=True)
-        self.submodules.vtg = vtg = VTG(self.pack_factor)
+        self.submodules.vtg = vtg = VideoTimingGenerator(self.pack_factor)
 
         self.comb += [
             # fi --> intseq

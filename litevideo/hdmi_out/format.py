@@ -56,7 +56,7 @@ class FrameInitiator(SingleGenerator):
         return ["length", "base"+str(i)]
 
 
-class VTG(Module):
+class VideoTimingGenerator(Module):
     def __init__(self, pack_factor):
         hbits_dyn = _hbits - log2_int(pack_factor)
         timing_layout = [
