@@ -5,13 +5,13 @@ from litex.soc.interconnect.csr import AutoCSR
 from litex.soc.interconnect import dma_lasmi
 
 from litevideo.spi import IntSequence
-from litevideo.hdmi_out.format import bpp, pixel_layout, phy_layout, FrameInitiator, VTG
+from litevideo.hdmi_out.format import bpp, pixel_layout, phy_description, FrameInitiator, VTG
 
 
 class HDMIOutCore(Module, AutoCSR):
     def __init__(self, lasmim):
         self.pack_factor = lasmim.dw//bpp
-        self.source = stream.Endpoint(phy_layout(self.pack_factor))
+        self.source = stream.Endpoint(phy_description(self.pack_factor))
 
         # # #
 

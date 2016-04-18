@@ -57,7 +57,8 @@ class Encoder(Module):
             self.sync += new_c.eq(s_c), new_de.eq(s_de)
             s_c, s_de = new_c, new_de
 
-        self.sync += If(s_de,
+        self.sync += \
+            If(s_de,
                 If((cnt == 0) | (n1q_m == n0q_m),
                     self.out[9].eq(~q_m_r[8]),
                     self.out[8].eq(q_m_r[8]),
@@ -85,6 +86,3 @@ class Encoder(Module):
                 self.out.eq(Array(control_tokens)[s_c]),
                 cnt.eq(0)
             )
-
-
-

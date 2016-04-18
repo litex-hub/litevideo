@@ -16,22 +16,15 @@ pixel_layout_s = [
     ("y", bpc)
 ]
 
-
 def pixel_layout(pack_factor):
     return [("p"+str(i), pixel_layout_s) for i in range(pack_factor)]
 
 bpc_phy = 8
-phy_layout_s = [
-    ("cb_cr", bpc_phy),
-    ("y", bpc_phy)
-]
 
-
-def phy_layout(pack_factor):
-    r = [("hsync", 1), ("vsync", 1), ("de", 1)]
-    for i in range(pack_factor):
-        r.append(("p"+str(i), phy_layout_s))
-    return r
+def phy_description(pack_factor):
+    param_layout = [("hsync", 1), ("vsync", 1), ("de", 1)]
+    payload_layout = [("data", 2*bpc_phy*pack_factor)]
+    return stream.EndpointDescription(payload_layout, param_layout)
 
 
 class FrameInitiator(SingleGenerator):
@@ -77,7 +70,7 @@ class VTG(Module):
             ("vscan", _vbits)]
         self.timing = stream.Endpoint(timing_layout)
         self.pixels = stream.Endpoint(pixel_layout(pack_factor))
-        self.phy = stream.Endpoint(phy_layout(pack_factor))
+        self.phy = stream.Endpoint(phy_description(pack_factor))
 
         # # #
 
@@ -92,9 +85,9 @@ class VTG(Module):
         self.comb += [
             active.eq(hactive & vactive),
             If(active,
-                [getattr(getattr(self.phy.payload, p), c).eq(getattr(getattr(self.pixels.payload, p), c)[skip:])
-                    for p in ["p"+str(i) for i in range(pack_factor)] for c in ["y", "cb_cr"]],
-                self.phy.de.eq(1)
+			    self.phy.valid.eq(1),
+                self.phy.de.eq(1),
+                self.phy.payload.raw_bits().eq(self.pixels.payload.raw_bits())
             ),
             self.pixels.ready.eq(self.phy.ready & active)
         ]
