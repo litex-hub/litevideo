@@ -1,16 +1,16 @@
 from litex.gen import *
 from litex.soc.interconnect.csr import AutoCSR
 
-from litevideo.hdmi_in.edid import EDID
-from litevideo.hdmi_in.clocking import Clocking
-from litevideo.hdmi_in.datacapture import DataCapture
-from litevideo.hdmi_in.charsync import CharSync
-from litevideo.hdmi_in.wer import WER
-from litevideo.hdmi_in.decoding import Decoding
-from litevideo.hdmi_in.chansync import ChanSync
-from litevideo.hdmi_in.analysis import SyncPolarity, ResolutionDetection
-from litevideo.hdmi_in.analysis import FrameExtraction
-from litevideo.hdmi_in.dma import DMA
+from litevideo.input.edid import EDID
+from litevideo.input.clocking import Clocking
+from litevideo.input.datacapture import DataCapture
+from litevideo.input.charsync import CharSync
+from litevideo.input.wer import WER
+from litevideo.input.decoding import Decoding
+from litevideo.input.chansync import ChanSync
+from litevideo.input.analysis import SyncPolarity, ResolutionDetection
+from litevideo.input.analysis import FrameExtraction
+from litevideo.input.dma import DMA
 
 
 class HDMIIn(Module, AutoCSR):

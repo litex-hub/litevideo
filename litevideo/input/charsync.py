@@ -6,7 +6,7 @@ from litex.gen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 
-from litevideo.hdmi_in.common import control_tokens
+from litevideo.input.common import control_tokens
 
 
 class CharSync(Module, AutoCSR):

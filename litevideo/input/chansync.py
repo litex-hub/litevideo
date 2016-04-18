@@ -8,7 +8,7 @@ from litex.gen.genlib.record import Record, layout_len
 
 from litex.soc.interconnect.csr import *
 
-from litevideo.hdmi_in.common import channel_layout
+from litevideo.input.common import channel_layout
 
 
 class _SyncBuffer(Module):

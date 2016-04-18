@@ -4,7 +4,7 @@ from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
 
-from litevideo.hdmi_in.common import channel_layout
+from litevideo.input.common import channel_layout
 from litevideo.csc.rgb2ycbcr import RGB2YCbCr
 from litevideo.csc.ycbcr444to422 import YCbCr444to422
 

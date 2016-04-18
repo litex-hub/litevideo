@@ -1,6 +1,6 @@
 from litex.gen import *
 
-from litevideo.hdmi_in.common import control_tokens, channel_layout
+from litevideo.input.common import control_tokens, channel_layout
 
 
 class Decoding(Module):

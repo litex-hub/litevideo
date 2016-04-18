@@ -9,8 +9,8 @@ from litevideo.csc.ycbcr422to444 import YCbCr422to444
 
 from litevideo.spi import IntSequence, SingleGenerator, MODE_CONTINUOUS
 
-from litevideo.out.common import *
-from litevideo.out.hdmi.s6 import S6HDMIOutClocking, S6HDMIOutPHY
+from litevideo.output.common import *
+from litevideo.output.hdmi.s6 import S6HDMIOutClocking, S6HDMIOutPHY
 
 
 class FrameInitiator(SingleGenerator):

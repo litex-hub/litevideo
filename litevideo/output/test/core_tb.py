@@ -3,7 +3,7 @@ from litex.gen import *
 from litex.soc.interconnect.stream import *
 from litex.soc.interconnect import lasmi_bus
 
-from litevideo.out.core import VideoOutCore
+from litevideo.output.core import VideoOutCore
 
 
 class TB(Module):
