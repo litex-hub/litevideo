@@ -14,6 +14,16 @@ from litevideo.output.hdmi.s6 import S6HDMIOutClocking, S6HDMIOutPHY
 
 
 class FrameInitiator(SingleGenerator):
+    """Frame initiator
+
+    Generates a stream of tokens with associated
+    H/V parameters.
+
+    This modules controlled from CSR registers generates one token
+    to be generated and provides vertical and horizontal parameters.
+    Once started, the module generates frames tokens continously and
+    can be stopped from CSR.
+    """
     def __init__(self, bus_aw, pack_factor, ndmas=1):
         h_alignment_bits = log2_int(pack_factor)
         hbits_dyn = hbits - h_alignment_bits
@@ -40,6 +50,10 @@ class FrameInitiator(SingleGenerator):
 
 
 class TimingGenerator(Module):
+    """Timing Generator
+
+    Generates the horizontal / vertical video timings of a video frame.
+    """
     def __init__(self, pack_factor):
         hbits_dyn = hbits - log2_int(pack_factor)
         self.timing = stream.Endpoint(timing_layout(hbits_dyn))
@@ -126,6 +140,10 @@ phy_cls = {
 }
 
 class Driver(Module, AutoCSR):
+    """Driver
+
+    Low level video interface module.
+    """
     def __init__(self, device, pack_factor, pads, external_clocking=None):
         self.sink = stream.Endpoint(phy_description(pack_factor))
 
@@ -195,6 +213,10 @@ class Driver(Module, AutoCSR):
 
 
 class VideoOutCore(Module, AutoCSR):
+    """Video out core
+
+    Generates a video stream from memory.
+    """
     def __init__(self, lasmim):
         self.pack_factor = lasmim.dw//bpp
         self.source = stream.Endpoint(phy_description(self.pack_factor))
@@ -249,6 +271,10 @@ class VideoOutCore(Module, AutoCSR):
 
 
 class VideoOut(Module, AutoCSR):
+    """Video out
+
+    Generates a video from memory.
+    """
     def __init__(self, device, pads, lasmim, external_clocking=None):
         self.submodules.core = VideoOutCore(lasmim)
         self.submodules.driver = Driver(device,
