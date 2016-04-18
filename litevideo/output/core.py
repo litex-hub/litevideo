@@ -173,7 +173,7 @@ class Driver(Module, AutoCSR):
         ycbcr2rgb = YCbCr2RGB()
         self.submodules += ClockDomainsRenamer("pix")(ycbcr2rgb)
         self.comb += [
-            Record.connect(chroma_upsampler.source, ycbcr2rgb.sink),
+            chroma_upsampler.source.connect(ycbcr2rgb.sink),
             ycbcr2rgb.source.ready.eq(1)
         ]
 
