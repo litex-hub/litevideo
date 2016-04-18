@@ -128,3 +128,48 @@ class IntSequence(Module):
                 )
             )
         )
+
+
+class _DMAController(Module):
+    def __init__(self, bus_accessor, bus_aw, bus_dw, mode, base_reset=0, length_reset=0):
+        self.alignment_bits = bits_for(bus_dw//8) - 1
+        layout = [
+            ("length", bus_aw + self.alignment_bits, length_reset, self.alignment_bits),
+            ("base", bus_aw + self.alignment_bits, base_reset, self.alignment_bits)
+        ]
+        self.generator = SingleGenerator(layout, mode)
+        self._busy = CSRStatus()
+
+        self.length = self.generator._length.storage
+        self.base = self.generator._base.storage
+        if hasattr(self.generator, "trigger"):
+            self.trigger = self.generator.trigger
+
+    def get_csrs(self):
+        return self.generator.get_csrs() + [self._busy]
+
+
+class DMAReadController(_DMAController):
+    def __init__(self, bus_accessor, *args, **kwargs):
+        bus_aw = len(bus_accessor.sink.address)
+        bus_dw = len(bus_accessor.source.data)
+        _DMAController.__init__(self, bus_accessor, bus_aw, bus_dw, *args, **kwargs)
+
+        self.submodules.intseq = IntSequence(bus_aw, bus_aw)
+
+        self.comb += [
+            # generator --> intseq
+            self.intseq.sink.valid.eq(self.generator.source.valid),
+            self.intseq.sink.maximum.eq(self.generator.source.length),
+            self.intseq.sink.offset.eq(self.generator.source.base),
+            self.generator.source.ready.eq(self.intseq.sink.ready),
+
+            # intseq --> bus accessor
+            bus_accessor.sink.valid.eq(self.intseq.source.valid),
+            bus_accessor.sink.address.eq(self.intseq.source.value),
+            self.intseq.source.ready.eq(bus_accessor.sink.ready)
+        ]
+
+        self.source = bus_accessor.source
+        self.busy = 0 # XXX use last signal?
+        self.comb += self._busy.status.eq(self.busy)
