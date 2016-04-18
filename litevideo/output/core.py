@@ -16,11 +16,22 @@ from litevideo.output.hdmi.s6 import S6HDMIOutClocking, S6HDMIOutPHY
 class FrameInitiator(SingleGenerator):
     def __init__(self, bus_aw, pack_factor, ndmas=1):
         h_alignment_bits = log2_int(pack_factor)
-        self.hbits_dyn = hbits - h_alignment_bits
+        hbits_dyn = hbits - h_alignment_bits
         bus_alignment_bits = h_alignment_bits + log2_int(bpp//8)
-        layout = timing_layout(self.hbits_dyn)
-        layout +=[("length", bus_aw + bus_alignment_bits)]
-        layout += [("base"+str(i), bus_aw + bus_alignment_bits)
+        layout = [
+            ("hres", hbits_dyn, 0, h_alignment_bits),
+            ("hsync_start", hbits_dyn, 0, h_alignment_bits),
+            ("hsync_end", hbits_dyn, 0, h_alignment_bits),
+            ("hscan", hbits_dyn, 0, h_alignment_bits),
+
+            ("vres", vbits),
+            ("vsync_start", vbits),
+            ("vsync_end", vbits),
+            ("vscan", vbits),
+
+            ("length", bus_aw + bus_alignment_bits, 0, bus_alignment_bits)
+        ]
+        layout += [("base"+str(i), bus_aw + bus_alignment_bits, 0, bus_alignment_bits)
             for i in range(ndmas)]
         SingleGenerator.__init__(self, layout, MODE_CONTINUOUS)
 
@@ -49,6 +60,7 @@ class TimingGenerator(Module):
             active.eq(hactive & vactive),
             If(active,
                 self.phy.valid.eq(1),
+                self.phy.de.eq(1),
                 self.phy.payload.raw_bits().eq(self.pixels.payload.raw_bits())
             ),
             self.pixels.ready.eq(self.phy.ready & active)
@@ -141,7 +153,7 @@ class Driver(Module, AutoCSR):
         chroma_upsampler = YCbCr422to444()
         self.submodules += ClockDomainsRenamer("pix")(chroma_upsampler)
         self.comb += [
-          chroma_upsampler.sink.valid.eq(converter.source.valid),
+          chroma_upsampler.sink.valid.eq(converter.source.de),
           chroma_upsampler.sink.y.eq(converter.source.data[8:]),
           chroma_upsampler.sink.cb_cr.eq(converter.source.data[:8])
         ]
@@ -153,20 +165,20 @@ class Driver(Module, AutoCSR):
             ycbcr2rgb.source.ready.eq(1)
         ]
 
-        valid = converter.source.valid
+        de = converter.source.de
         hsync = converter.source.hsync
         vsync = converter.source.vsync
         for i in range(chroma_upsampler.latency +
                        ycbcr2rgb.latency):
-            next_valid = Signal()
+            next_de = Signal()
             next_vsync = Signal()
             next_hsync = Signal()
             self.sync.pix += [
-                next_valid.eq(valid),
+                next_de.eq(de),
                 next_vsync.eq(vsync),
                 next_hsync.eq(hsync),
             ]
-            valid = next_valid
+            de = next_de
             vsync = next_vsync
             hsync = next_hsync
 
@@ -175,7 +187,7 @@ class Driver(Module, AutoCSR):
         self.comb += [
             self.hdmi_phy.hsync.eq(hsync),
             self.hdmi_phy.vsync.eq(vsync),
-            self.hdmi_phy.de.eq(valid),
+            self.hdmi_phy.de.eq(de),
             self.hdmi_phy.r.eq(ycbcr2rgb.source.r),
             self.hdmi_phy.g.eq(ycbcr2rgb.source.g),
             self.hdmi_phy.b.eq(ycbcr2rgb.source.b)
