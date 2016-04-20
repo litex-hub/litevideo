@@ -21,6 +21,7 @@ def phy_description(pack_factor):
     param_layout = [("hsync", 1), ("vsync", 1), ("de", 1)]
     payload_layout = [("data", 2*bpc_phy*pack_factor)]
     return stream.EndpointDescription(payload_layout, param_layout)
+
 def timing_layout(hbits_dyn):
     return [("hres", hbits_dyn),
             ("hsync_start", hbits_dyn),
