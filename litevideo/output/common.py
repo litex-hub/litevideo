@@ -15,14 +15,7 @@ pixel_layout_s = [
 def pixel_layout(pack_factor):
     return [("p"+str(i), pixel_layout_s) for i in range(pack_factor)]
 
-bpc_phy = 8
-
-def phy_description(pack_factor):
-    param_layout = [("hsync", 1), ("vsync", 1), ("de", 1)]
-    payload_layout = [("data", 2*bpc_phy*pack_factor)]
-    return stream.EndpointDescription(payload_layout, param_layout)
-
-timing_layout = [
+frame_parameter_layout = [
     ("hres", hbits),
     ("hsync_start", hbits),
     ("hsync_end", hbits),
@@ -32,3 +25,14 @@ timing_layout = [
     ("vsync_end", vbits),
     ("vscan", vbits)
 ]
+
+frame_synchro_layout = [
+    ("hsync", 1),
+    ("vsync", 1),
+    ("de", 1)
+]
+
+def phy_description(pack_factor):
+    param_layout = frame_synchro_layout
+    payload_layout = [("data", 2*8*pack_factor)]
+    return stream.EndpointDescription(payload_layout, param_layout)

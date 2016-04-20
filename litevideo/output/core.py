@@ -53,10 +53,9 @@ class TimingGenerator(Module):
 
     Generates the horizontal / vertical video timings of a video frame.
     """
-    def __init__(self, pack_factor):
-        self.timing = stream.Endpoint(timing_layout)
-        self.pixels = stream.Endpoint(pixel_layout(pack_factor))
-        self.phy = stream.Endpoint(phy_description(pack_factor))
+    def __init__(self):
+        self.sink = sink = stream.Endpoint(frame_parameter_layout)
+        self.source = source = stream.Endpoint(frame_synchro_layout)
 
         # # #
 
@@ -67,52 +66,44 @@ class TimingGenerator(Module):
         hcounter = Signal(hbits)
         vcounter = Signal(vbits)
 
-        skip = bpc - bpc_phy
         self.comb += [
-            If(self.timing.valid,
+            If(sink.valid,
                 active.eq(hactive & vactive),
                 If(active,
-                    self.phy.valid.eq(self.pixels.valid),
-                    self.phy.de.eq(1),
-                    self.phy.payload.raw_bits().eq(self.pixels.payload.raw_bits())
+                    source.valid.eq(1),
+                    source.de.eq(1),
                 ).Else(
-                    self.phy.valid.eq(1)
-                ),
-                self.pixels.ready.eq(self.phy.ready & active)
+                    source.valid.eq(1)
+                )
             )
         ]
 
-        generate_en = Signal()
-        generate_frame_done = Signal()
-        self.sync += [
-            generate_frame_done.eq(0),
-            If(generate_en,
+        self.sync += \
+            If(sink.valid & source.ready,
+                source.last.eq(0),
                 hcounter.eq(hcounter + 1),
 
                 If(hcounter == 0, hactive.eq(1)),
-                If(hcounter == self.timing.hres, hactive.eq(0)),
-                If(hcounter == self.timing.hsync_start, self.phy.hsync.eq(1)),
-                If(hcounter == self.timing.hsync_end, self.phy.hsync.eq(0)),
-                If(hcounter == self.timing.hscan,
+                If(hcounter == sink.hres, hactive.eq(0)),
+                If(hcounter == sink.hsync_start, source.hsync.eq(1)),
+                If(hcounter == sink.hsync_end, source.hsync.eq(0)),
+                If(hcounter == sink.hscan,
                     hcounter.eq(0),
-                    If(vcounter == self.timing.vscan,
+                    If(vcounter == sink.vscan,
                         vcounter.eq(0),
-                        generate_frame_done.eq(1)
+                        source.last.eq(1)
                     ).Else(
                         vcounter.eq(vcounter + 1)
                     )
                 ),
 
                 If(vcounter == 0, vactive.eq(1)),
-                If(vcounter == self.timing.vres, vactive.eq(0)),
-                If(vcounter == self.timing.vsync_start, self.phy.vsync.eq(1)),
-                If(vcounter == self.timing.vsync_end, self.phy.vsync.eq(0))
+                If(vcounter == sink.vres, vactive.eq(0)),
+                If(vcounter == sink.vsync_start, source.vsync.eq(1)),
+                If(vcounter == sink.vsync_end, source.vsync.eq(0))
             )
-        ]
-        self.comb += [
-            generate_en.eq(self.timing.valid & self.phy.ready),
-            self.timing.ready.eq(generate_frame_done)
-        ]
+        self.comb += sink.ready.eq(source.ready & source.last)
+
 
 clocking_cls = {
     "xc6" : S6HDMIOutClocking
