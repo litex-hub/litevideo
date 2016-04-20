@@ -3,31 +3,6 @@ from litex.gen import *
 from litevideo.output.hdmi.encoder import Encoder
 
 
-# This assumes a 100MHz base clock
-class S7HDMIOutClocking(Module):
-    def __init__(self, clk100):
-        self.clock_domains.cd_pix = ClockDomain("pix")
-        self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
-
-        mmcm_locked = Signal()
-        mmcm_fb = Signal()
-
-        self.specials += Instance("MMCME2_BASE",
-                    p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
-
-                    # VCO
-                    p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                    p_CLKFBOUT_MULT_F=30.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
-                    i_CLKIN1=clk100, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
-
-                    # CLK0
-                    p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=self.cd_pix.clk,
-                    # CLK1
-                    p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=self.cd_pix5x.clk
-        )
-        self.comb += self.cd_pix.rst.eq(~mmcm_locked)
-
-
 class S7HDMIOutEncoderSerializer(Module):
     def __init__(self, pad_p, pad_n, bypass_encoder=False):
         if not bypass_encoder:
@@ -129,6 +104,33 @@ class S7HDMIOutEncoderSerializer(Module):
                 p_IOSTANDARD="TDMS_33", p_SLEW="FAST",
                 i_I=pad_se, o_O=pad_p, o_OB=pad_n
         )
+
+
+# This assumes a 100MHz base clock
+class S7HDMIOutClocking(Module):
+    def __init__(self, clk100, pads):
+        self.clock_domains.cd_pix = ClockDomain("pix")
+        self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
+
+        mmcm_locked = Signal()
+        mmcm_fb = Signal()
+
+        self.specials += Instance("MMCME2_BASE",
+                    p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
+
+                    # VCO
+                    p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                    p_CLKFBOUT_MULT_F=30.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
+                    i_CLKIN1=clk100, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
+
+                    # CLK0
+                    p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=self.cd_pix.clk,
+                    # CLK1
+                    p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=self.cd_pix5x.clk
+        )
+        self.comb += self.cd_pix.rst.eq(~mmcm_locked)
+        self.submodules.clk_gen = S7HDMIOutEncoderSerializer(pads.clk_p, pads.clk_n, bypass_encoder=True)
+        self.comb += self.clk_gen.data.eq(Signal(10, reset=0b0000011111))
 
 
 class S7HDMIOutPHY(Module):
