@@ -71,18 +71,18 @@ class TimingGenerator(Module):
 
         skip = bpc - bpc_phy
         self.comb += [
-            active.eq(hactive & vactive),
-            If(active,
-                self.phy.valid.eq(1),
-                self.phy.de.eq(1),
-                self.phy.payload.raw_bits().eq(self.pixels.payload.raw_bits())
-            ),
-            self.pixels.ready.eq(self.phy.ready & active)
+            If(self.timing.valid,
+                active.eq(hactive & vactive),
+                If(active,
+                    self.phy.valid.eq(self.pixels.valid),
+                    self.phy.de.eq(1),
+                    self.phy.payload.raw_bits().eq(self.pixels.payload.raw_bits())
+                ).Else(
+                    self.phy.valid.eq(1)
+                ),
+                self.pixels.ready.eq(self.phy.ready & active)
+            )
         ]
-
-        load_timing = Signal()
-        tr = Record(timing_layout(hbits_dyn))
-        self.sync += If(load_timing, tr.eq(self.timing.payload))
 
         generate_en = Signal()
         generate_frame_done = Signal()
@@ -92,12 +92,12 @@ class TimingGenerator(Module):
                 hcounter.eq(hcounter + 1),
 
                 If(hcounter == 0, hactive.eq(1)),
-                If(hcounter == tr.hres, hactive.eq(0)),
-                If(hcounter == tr.hsync_start, self.phy.hsync.eq(1)),
-                If(hcounter == tr.hsync_end, self.phy.hsync.eq(0)),
-                If(hcounter == tr.hscan,
+                If(hcounter == self.timing.hres, hactive.eq(0)),
+                If(hcounter == self.timing.hsync_start, self.phy.hsync.eq(1)),
+                If(hcounter == self.timing.hsync_end, self.phy.hsync.eq(0)),
+                If(hcounter == self.timing.hscan,
                     hcounter.eq(0),
-                    If(vcounter == tr.vscan,
+                    If(vcounter == self.timing.vscan,
                         vcounter.eq(0),
                         generate_frame_done.eq(1)
                     ).Else(
@@ -106,30 +106,15 @@ class TimingGenerator(Module):
                 ),
 
                 If(vcounter == 0, vactive.eq(1)),
-                If(vcounter == tr.vres, vactive.eq(0)),
-                If(vcounter == tr.vsync_start, self.phy.vsync.eq(1)),
-                If(vcounter == tr.vsync_end, self.phy.vsync.eq(0))
+                If(vcounter == self.timing.vres, vactive.eq(0)),
+                If(vcounter == self.timing.vsync_start, self.phy.vsync.eq(1)),
+                If(vcounter == self.timing.vsync_end, self.phy.vsync.eq(0))
             )
         ]
-
-        self.submodules.fsm = FSM()
-        self.fsm.act("GET_TIMING",
-            self.timing.ready.eq(1),
-            load_timing.eq(1),
-            If(self.timing.valid,
-                NextState("GENERATE")
-            )
-        )
-        self.fsm.act("GENERATE",
-            If(~active | self.pixels.valid,
-                self.phy.valid.eq(1),
-                If(self.phy.ready, generate_en.eq(1))
-            ),
-            If(generate_frame_done,
-                NextState("GET_TIMING")
-            )
-        )
-
+        self.comb += [
+            generate_en.eq(self.timing.valid & self.phy.ready),
+            self.timing.ready.eq(generate_frame_done)
+        ]
 
 clocking_cls = {
     "xc6" : S6HDMIOutClocking
