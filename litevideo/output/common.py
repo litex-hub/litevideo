@@ -22,12 +22,13 @@ def phy_description(pack_factor):
     payload_layout = [("data", 2*bpc_phy*pack_factor)]
     return stream.EndpointDescription(payload_layout, param_layout)
 
-def timing_layout(hbits_dyn):
-    return [("hres", hbits_dyn),
-            ("hsync_start", hbits_dyn),
-            ("hsync_end", hbits_dyn),
-            ("hscan", hbits_dyn),
-            ("vres", vbits),
-            ("vsync_start", vbits),
-            ("vsync_end", vbits),
-            ("vscan", vbits)]
+timing_layout = [
+    ("hres", hbits),
+    ("hsync_start", hbits),
+    ("hsync_end", hbits),
+    ("hscan", hbits),
+    ("vres", vbits),
+    ("vsync_start", vbits),
+    ("vsync_end", vbits),
+    ("vscan", vbits)
+]

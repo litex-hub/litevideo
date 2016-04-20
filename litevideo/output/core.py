@@ -26,13 +26,12 @@ class FrameInitiator(SingleGenerator):
     """
     def __init__(self, bus_aw, pack_factor, ndmas=1):
         h_alignment_bits = log2_int(pack_factor)
-        hbits_dyn = hbits - h_alignment_bits
         bus_alignment_bits = h_alignment_bits + log2_int(bpp//8)
         layout = [
-            ("hres", hbits_dyn, 0, h_alignment_bits),
-            ("hsync_start", hbits_dyn, 0, h_alignment_bits),
-            ("hsync_end", hbits_dyn, 0, h_alignment_bits),
-            ("hscan", hbits_dyn, 0, h_alignment_bits),
+            ("hres", hbits, 0, h_alignment_bits),
+            ("hsync_start", hbits, 0, h_alignment_bits),
+            ("hsync_end", hbits, 0, h_alignment_bits),
+            ("hscan", hbits, 0, h_alignment_bits),
 
             ("vres", vbits),
             ("vsync_start", vbits),
@@ -55,8 +54,7 @@ class TimingGenerator(Module):
     Generates the horizontal / vertical video timings of a video frame.
     """
     def __init__(self, pack_factor):
-        hbits_dyn = hbits - log2_int(pack_factor)
-        self.timing = stream.Endpoint(timing_layout(hbits_dyn))
+        self.timing = stream.Endpoint(timing_layout)
         self.pixels = stream.Endpoint(pixel_layout(pack_factor))
         self.phy = stream.Endpoint(phy_description(pack_factor))
 
@@ -66,7 +64,7 @@ class TimingGenerator(Module):
         vactive = Signal()
         active = Signal()
 
-        hcounter = Signal(hbits_dyn)
+        hcounter = Signal(hbits)
         vcounter = Signal(vbits)
 
         skip = bpc - bpc_phy
