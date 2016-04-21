@@ -37,6 +37,8 @@ frame_timing_layout = [
     ("de", 1)
 ]
 
+color_bar_parameter_layout = [("hres", hbits)]
+
 def video_out_layout(dw):
     param_layout = frame_timing_layout
     payload_layout = [("data", dw)]
