@@ -140,9 +140,9 @@ class S7HDMIOutClocking(Module, AutoCSR):
                     i_CLKIN1=clk100, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
                     # CLK0
-                    p_CLKOUT0_DIVIDE_F=10.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=self.cd_pix.clk,
+                    p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=self.cd_pix.clk,
                     # CLK1
-                    p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=self.cd_pix5x.clk,
+                    p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=self.cd_pix5x.clk,
 
                     # DRP
                     i_DCLK=ClockSignal(),
