@@ -5,8 +5,8 @@ from litex.soc.interconnect import stream
 from litevideo.output.common import *
 
 
-class ColorBarPattern(Module):
-    """Color Bar Pattern
+class ColorBarsPattern(Module):
+    """Color Bars Pattern
     """
     def __init__(self):
         self.sink = sink = stream.Endpoint(color_bar_parameter_layout)
@@ -51,3 +51,31 @@ class ColorBarPattern(Module):
                 source.b.eq(color_bar[i][2])
             ]
         self.sync += Case(bar, cases)
+
+
+class VerticalLinesPattern(Module):
+    """Vertical Lines Pattern
+    """
+    def __init__(self):
+        self.sink = sink = stream.Endpoint(color_bar_parameter_layout)
+        self.source = source = stream.Endpoint([("r", 8), ("g", 8), ("b", 8)])
+
+        # # #
+
+        parity = Signal()
+        self.sync += [
+            source.valid.eq(1),
+            If(source.ready,
+                parity.eq(~parity)
+            ),
+            If(parity,
+                source.r.eq(255),
+                source.g.eq(255),
+                source.b.eq(255)
+            ).Else(
+                source.r.eq(0),
+                source.g.eq(0),
+                source.b.eq(0)
+            )
+        ]
+
