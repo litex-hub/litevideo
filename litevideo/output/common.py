@@ -26,13 +26,21 @@ frame_parameter_layout = [
     ("vscan", vbits)
 ]
 
-frame_synchro_layout = [
+frame_dma_layout = [
+    ("base", 32),
+    ("end",  32)
+]
+
+frame_timing_layout = [
     ("hsync", 1),
     ("vsync", 1),
     ("de", 1)
 ]
 
-def phy_description(pack_factor):
-    param_layout = frame_synchro_layout
-    payload_layout = [("data", 2*8*pack_factor)]
+def video_out_layout(dw):
+    param_layout = frame_timing_layout
+    payload_layout = [("data", dw)]
     return stream.EndpointDescription(payload_layout, param_layout)
+
+def list_signals(layout):
+    return [f[0] for f in layout]

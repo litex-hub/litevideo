@@ -53,16 +53,21 @@ class LASMIMemory:
 def main_generator(dut):
     for i in range(100):
         yield
-    yield dut.core.fi._hres.storage.eq(16)
-    yield dut.core.fi._hsync_start.storage.eq(18)
-    yield dut.core.fi._hsync_end.storage.eq(20)
-    yield dut.core.fi._hscan.storage.eq(24)
-    yield dut.core.fi._vres.storage.eq(32)
-    yield dut.core.fi._vsync_start.storage.eq(34)
-    yield dut.core.fi._vsync_end.storage.eq(36)
-    yield dut.core.fi._vscan.storage.eq(48)
+    yield dut.core.initiator.hres.storage.eq(16)
+    yield dut.core.initiator.hsync_start.storage.eq(18)
+    yield dut.core.initiator.hsync_end.storage.eq(20)
+    yield dut.core.initiator.hscan.storage.eq(24)
+
+    yield dut.core.initiator.vres.storage.eq(32)
+    yield dut.core.initiator.vsync_start.storage.eq(34)
+    yield dut.core.initiator.vsync_end.storage.eq(36)
+    yield dut.core.initiator.vscan.storage.eq(48)
+    
+    yield dut.core.initiator.base.storage.eq(0)
+    yield dut.core.initiator.end.storage.eq(16*32)
+    
     yield
-    yield dut.core.fi._enable.storage.eq(1)
+    yield dut.core.initiator.enable.storage.eq(1)
     yield
     for i in range(4096):
         yield

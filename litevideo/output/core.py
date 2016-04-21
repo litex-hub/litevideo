@@ -1,61 +1,49 @@
 from litex.gen import *
 
 from litex.soc.interconnect import stream
-from litex.soc.interconnect.csr import AutoCSR
+from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import dma_lasmi
 
 from litevideo.csc.ycbcr2rgb import YCbCr2RGB
 from litevideo.csc.ycbcr422to444 import YCbCr422to444
 
-from litevideo.spi import IntSequence, SingleGenerator, MODE_CONTINUOUS
-
 from litevideo.output.common import *
 from litevideo.output.hdmi.s6 import S6HDMIOutClocking, S6HDMIOutPHY
+from litevideo.output.hdmi.s7 import S7HDMIOutClocking, S7HDMIOutPHY
 
 
-class FrameInitiator(SingleGenerator):
+class FrameInitiator(Module, AutoCSR):
     """Frame initiator
 
-    Generates a stream of tokens with associated
-    H/V parameters.
-
-    This modules controlled from CSR registers generates one token
-    to be generated and provides vertical and horizontal parameters.
-    Once started, the module generates frames tokens continously and
-    can be stopped from CSR.
+    Generates the H/V and dma parameters of a frame.
     """
-    def __init__(self, bus_aw, pack_factor, ndmas=1):
-        h_alignment_bits = log2_int(pack_factor)
-        bus_alignment_bits = h_alignment_bits + log2_int(bpp//8)
-        layout = [
-            ("hres", hbits, 0, h_alignment_bits),
-            ("hsync_start", hbits, 0, h_alignment_bits),
-            ("hsync_end", hbits, 0, h_alignment_bits),
-            ("hscan", hbits, 0, h_alignment_bits),
+    def __init__(self):
+        self.source = stream.Endpoint(frame_parameter_layout +
+                                      frame_dma_layout)
 
-            ("vres", vbits),
-            ("vsync_start", vbits),
-            ("vsync_end", vbits),
-            ("vscan", vbits),
+        # # #
 
-            ("length", bus_aw + bus_alignment_bits, 0, bus_alignment_bits)
+        self.enable = CSRStorage()
+        for name, width in frame_parameter_layout + frame_dma_layout:
+            setattr(self, name, CSRStorage(width, name=name))
+            self.comb += getattr(self.source, name).eq(getattr(self, name).storage)
+        self.sync += [
+            If(self.enable.storage,
+                self.source.valid.eq(1)
+            ).Elif(self.source.ready,
+                self.source.valid.eq(0)
+            )
         ]
-        layout += [("base"+str(i), bus_aw + bus_alignment_bits, 0, bus_alignment_bits)
-            for i in range(ndmas)]
-        SingleGenerator.__init__(self, layout, MODE_CONTINUOUS)
-
-    def dma_subr(self, i=0):
-        return ["length", "base"+str(i)]
 
 
-class TimingGenerator(Module):
-    """Timing Generator
+class FrameTiming(Module):
+    """Frame Timing
 
-    Generates the horizontal / vertical video timings of a video frame.
+    Generates the H/V timings of a frame.
     """
     def __init__(self):
         self.sink = sink = stream.Endpoint(frame_parameter_layout)
-        self.source = source = stream.Endpoint(frame_synchro_layout)
+        self.source = source = stream.Endpoint(frame_timing_layout)
 
         # # #
 
@@ -69,13 +57,12 @@ class TimingGenerator(Module):
         self.comb += [
             If(sink.valid,
                 active.eq(hactive & vactive),
+                source.valid.eq(1),
                 If(active,
-                    source.valid.eq(1),
                     source.de.eq(1),
-                ).Else(
-                    source.valid.eq(1)
                 )
-            )
+            ),
+            sink.ready.eq(source.ready & source.last)
         ]
 
         self.sync += \
@@ -102,15 +89,116 @@ class TimingGenerator(Module):
                 If(vcounter == sink.vsync_start, source.vsync.eq(1)),
                 If(vcounter == sink.vsync_end, source.vsync.eq(0))
             )
-        self.comb += sink.ready.eq(source.ready & source.last)
+
+
+class FrameDMAReader(Module, AutoCSR):
+    """Frame DMA reader
+
+    Generates the data stream of a frame.
+    """
+    def __init__(self, lasmim):
+        self.sink = sink = stream.Endpoint(frame_dma_layout)
+        self.source = source = stream.Endpoint([("data", lasmim.dw)])
+
+        # # #
+
+        self.submodules.reader = dma_lasmi.Reader(lasmim)
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+
+        address = Signal(lasmim.aw)
+        address_init = Signal()
+        address_inc = Signal()
+        self.sync += \
+            If(address_init,
+                address.eq(self.sink.base)
+            ).Elif(address_inc,
+                address.eq(address + 1)
+            )
+
+        fsm.act("IDLE",
+            address_init.eq(1),
+            If(sink.valid,
+                NextState("READ")
+            )
+        )
+        fsm.act("READ",
+            self.reader.sink.valid.eq(1),
+            If(self.reader.sink.ready,
+                address_inc.eq(1),
+                If(address == self.sink.end,
+                    self.sink.ready.eq(1),
+                    NextState("IDLE")
+                )
+            )
+        )
+        self.comb += [
+            self.reader.sink.address.eq(address),
+            self.reader.source.connect(self.source)
+        ]
+
+
+class VideoOutCore(Module, AutoCSR):
+    """Video out core
+
+    Generates a video stream from memory.
+    """
+    def __init__(self, lasmim):
+        self.source = source = stream.Endpoint(video_out_layout(lasmim.dw))
+
+        # # #
+
+        self.submodules.initiator = initiator = FrameInitiator()
+        self.submodules.timing = timing = FrameTiming()
+        self.submodules.dma = dma = FrameDMAReader(lasmim)
+
+        # ctrl path
+        timing_done = Signal()
+        dma_done = Signal()
+        self.sync += [
+            If(initiator.source.ready,
+                timing_done.eq(0)
+            ).Elif(timing.sink.ready,
+                timing_done.eq(1)
+            ),
+            If(initiator.source.ready,
+                dma_done.eq(0)
+            ).Elif(dma.sink.ready,
+                dma_done.eq(1)
+            )
+        ]
+        self.comb += [
+            # dispatch initiator parameters to timing & dma
+            timing.sink.valid.eq(initiator.source.valid & ~timing_done),
+            dma.sink.valid.eq(initiator.source.valid & ~dma_done),
+            initiator.source.ready.eq((timing.sink.ready | timing_done) &
+                                      (dma.sink.ready | dma_done)),
+
+            # combine timing and dma
+            source.valid.eq(timing.source.valid & (-timing.source.de | dma.source.valid)),
+            timing.source.ready.eq(source.valid & source.ready),
+            dma.source.ready.eq(-timing.source.de & source.valid & source.ready)
+        ]
+
+        # data path
+        self.comb += [
+            # dispatch initiator parameters to timing & dma
+            initiator.source.connect(timing.sink, keep=list_signals(frame_parameter_layout)),
+            initiator.source.connect(dma.sink, keep=list_signals(frame_dma_layout)),
+
+            # combine timing and dma
+        	timing.source.connect(source, keep=list_signals(frame_dma_layout)),
+            dma.source.connect(source, keep=["data"]),
+        ]
 
 
 clocking_cls = {
-    "xc6" : S6HDMIOutClocking
+    "xc6" : S6HDMIOutClocking,
+    "xc7" : S7HDMIOutClocking,
 }
 
 phy_cls = {
-    "xc6" : S6HDMIOutPHY
+    "xc6" : S6HDMIOutPHY,
+    "xc7" : S7HDMIOutPHY
 }
 
 class Driver(Module, AutoCSR):
@@ -186,62 +274,6 @@ class Driver(Module, AutoCSR):
         ]
 
 
-class VideoOutCore(Module, AutoCSR):
-    """Video out core
-
-    Generates a video stream from memory.
-    """
-    def __init__(self, lasmim):
-        self.pack_factor = lasmim.dw//bpp
-        self.source = stream.Endpoint(phy_description(self.pack_factor))
-
-        # # #
-
-        self.submodules.fi = fi = FrameInitiator(lasmim.aw, self.pack_factor)
-        self.submodules.intseq = intseq = IntSequence(lasmim.aw, lasmim.aw)
-        self.submodules.dma_reader = dma_reader = dma_lasmi.Reader(lasmim)
-        self.submodules.cast = cast = stream.Cast(lasmim.dw,
-                                                  pixel_layout(self.pack_factor),
-                                                  reverse_to=True)
-        self.submodules.vtg = vtg = TimingGenerator(self.pack_factor)
-
-        self.comb += [
-            # fi --> intseq
-            intseq.sink.valid.eq(fi.source.valid),
-            intseq.sink.offset.eq(fi.source.base0),
-            intseq.sink.maximum.eq(fi.source.length),
-
-            # fi --> vtg
-            vtg.timing.valid.eq(fi.source.valid),
-            vtg.timing.hres.eq(fi.source.hres),
-            vtg.timing.hsync_start.eq(fi.source.hsync_start),
-            vtg.timing.hsync_end.eq(fi.source.hsync_end),
-            vtg.timing.hscan.eq(fi.source.hscan),
-            vtg.timing.vres.eq(fi.source.vres),
-            vtg.timing.vsync_start.eq(fi.source.vsync_start),
-            vtg.timing.vsync_end.eq(fi.source.vsync_end),
-            vtg.timing.vscan.eq(fi.source.vscan),
-
-            fi.source.ready.eq(vtg.timing.ready),
-
-            # intseq --> dma_reader
-            dma_reader.sink.valid.eq(intseq.source.valid),
-            dma_reader.sink.address.eq(intseq.source.value),
-            intseq.source.ready.eq(dma_reader.sink.ready),
-
-            # dma_reader --> cast
-            cast.sink.valid.eq(dma_reader.source.valid),
-            cast.sink.payload.raw_bits().eq(dma_reader.source.data),
-            dma_reader.source.ready.eq(cast.sink.ready),
-
-            # cast --> vtg
-            vtg.pixels.valid.eq(cast.source.valid),
-            vtg.pixels.payload.eq(cast.source.payload),
-            cast.source.ready.eq(vtg.pixels.ready),
-
-            # vtg --> source
-            vtg.phy.connect(self.source)
-        ]
 
 
 class VideoOut(Module, AutoCSR):
