@@ -64,9 +64,49 @@ class VerticalLinesPattern(Module):
 
         parity = Signal()
         self.sync += [
-            source.valid.eq(1),
-            If(source.ready,
-                parity.eq(~parity)
+            If(sink.valid,
+                source.valid.eq(1),
+                If(source.ready,
+                    parity.eq(~parity)
+                ),
+                If(parity,
+                    source.r.eq(255),
+                    source.g.eq(255),
+                    source.b.eq(255)
+                ).Else(
+                    source.r.eq(0),
+                    source.g.eq(0),
+                    source.b.eq(0)
+               )
+            )
+        ]
+
+
+class DotsPattern(Module):
+    """Dots Pattern
+    """
+    def __init__(self):
+        self.sink = sink = stream.Endpoint(color_bar_parameter_layout)
+        self.source = source = stream.Endpoint([("r", 8), ("g", 8), ("b", 8)])
+
+        # # #
+
+        h = Signal(hbits)
+        parity = Signal()
+        self.sync += [
+            If(sink.valid,
+                source.valid.eq(1),
+                If(source.ready,
+                    If(h == (sink.hres-1),
+                        # don't change parity:
+                        # next line pixel will
+                        # be swapped.
+                        h.eq(0)
+                    ).Else(
+                        h.eq(h+1),
+                        parity.eq(~parity)
+                    )
+                )
             ),
             If(parity,
                 source.r.eq(255),
@@ -78,4 +118,3 @@ class VerticalLinesPattern(Module):
                 source.b.eq(0)
             )
         ]
-
