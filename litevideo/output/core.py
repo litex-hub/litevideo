@@ -9,8 +9,8 @@ from litevideo.output.hdmi.s6 import S6HDMIOutClocking, S6HDMIOutPHY
 from litevideo.output.hdmi.s7 import S7HDMIOutClocking, S7HDMIOutPHY
 
 
-class FrameInitiator(Module, AutoCSR):
-    """Frame initiator
+class Initiator(Module, AutoCSR):
+    """Initiator
 
     Generates the H/V and dma parameters of a frame.
     """
@@ -33,8 +33,54 @@ class FrameInitiator(Module, AutoCSR):
         ]
 
 
-class FrameTiming(Module):
-    """Frame Timing
+class DMAReader(Module, AutoCSR):
+    """DMA reader
+
+    Generates the data stream of a frame.
+    """
+    def __init__(self, lasmim):
+        self.sink = sink = stream.Endpoint(frame_dma_layout)
+        self.source = source = stream.Endpoint([("data", lasmim.dw)])
+
+        # # #
+
+        self.submodules.reader = dma_lasmi.Reader(lasmim)
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+
+        address = Signal(lasmim.aw)
+        address_init = Signal()
+        address_inc = Signal()
+        self.sync += \
+            If(address_init,
+                address.eq(self.sink.base)
+            ).Elif(address_inc,
+                address.eq(address + 1)
+            )
+
+        fsm.act("IDLE",
+            address_init.eq(1),
+            If(sink.valid,
+                NextState("READ")
+            )
+        )
+        fsm.act("READ",
+            self.reader.sink.valid.eq(1),
+            If(self.reader.sink.ready,
+                address_inc.eq(1),
+                If(address == self.sink.end,
+                    self.sink.ready.eq(1),
+                    NextState("IDLE")
+                )
+            )
+        )
+        self.comb += [
+            self.reader.sink.address.eq(address),
+            self.reader.source.connect(self.source)
+        ]
+
+
+class TimingGenerator(Module):
+    """Timing Generator
 
     Generates the H/V timings of a frame.
     """
@@ -88,52 +134,6 @@ class FrameTiming(Module):
             )
 
 
-class FrameDMAReader(Module, AutoCSR):
-    """Frame DMA reader
-
-    Generates the data stream of a frame.
-    """
-    def __init__(self, lasmim):
-        self.sink = sink = stream.Endpoint(frame_dma_layout)
-        self.source = source = stream.Endpoint([("data", lasmim.dw)])
-
-        # # #
-
-        self.submodules.reader = dma_lasmi.Reader(lasmim)
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-
-        address = Signal(lasmim.aw)
-        address_init = Signal()
-        address_inc = Signal()
-        self.sync += \
-            If(address_init,
-                address.eq(self.sink.base)
-            ).Elif(address_inc,
-                address.eq(address + 1)
-            )
-
-        fsm.act("IDLE",
-            address_init.eq(1),
-            If(sink.valid,
-                NextState("READ")
-            )
-        )
-        fsm.act("READ",
-            self.reader.sink.valid.eq(1),
-            If(self.reader.sink.ready,
-                address_inc.eq(1),
-                If(address == self.sink.end,
-                    self.sink.ready.eq(1),
-                    NextState("IDLE")
-                )
-            )
-        )
-        self.comb += [
-            self.reader.sink.address.eq(address),
-            self.reader.source.connect(self.source)
-        ]
-
-
 class VideoOutCore(Module, AutoCSR):
     """Video out core
 
@@ -144,9 +144,9 @@ class VideoOutCore(Module, AutoCSR):
 
         # # #
 
-        self.submodules.initiator = initiator = FrameInitiator()
-        self.submodules.timing = timing = FrameTiming()
-        self.submodules.dma = dma = FrameDMAReader(lasmim)
+        self.submodules.initiator = initiator = Initiator()
+        self.submodules.timing = timing = TimingGenerator()
+        self.submodules.dma = dma = DMAReader(lasmim)
 
         # ctrl path
         timing_done = Signal()
