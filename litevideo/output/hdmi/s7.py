@@ -6,6 +6,8 @@ from litex.soc.interconnect.csr import *
 from litevideo.output.common import *
 from litevideo.output.hdmi.encoder import Encoder
 
+# Serializer and Clocking initial configurations come
+# from http://hamsterworks.co.nz/.
 
 class S7HDMIOutEncoderSerializer(Module):
     def __init__(self, pad_p, pad_n, bypass_encoder=False):
