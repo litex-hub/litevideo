@@ -44,3 +44,5 @@ def video_out_layout(dw):
 
 def list_signals(layout):
     return [f[0] for f in layout]
+
+phy_layout = frame_timing_layout + [("r", 8), ("g", 8), ("b", 8)]

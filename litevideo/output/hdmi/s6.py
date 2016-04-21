@@ -1,8 +1,10 @@
 from litex.gen import *
 from litex.gen.genlib.cdc import MultiReg
 
+from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
+from litevideo.output.common import *
 from litevideo.output.hdmi.encoder import Encoder
 
 
@@ -201,12 +203,7 @@ class _S6HDMIOutEncoderSerializer(Module):
 
 class S6HDMIOutPHY(Module):
     def __init__(self, serdesstrobe, pads):
-        self.hsync = Signal()
-        self.vsync = Signal()
-        self.de = Signal()
-        self.r = Signal(8)
-        self.g = Signal(8)
-        self.b = Signal(8)
+        self.sink = sink = stream.Endpoint(phy_layout)
 
         # # #
 
@@ -214,13 +211,14 @@ class S6HDMIOutPHY(Module):
         self.submodules.es1 = _S6HDMIOutEncoderSerializer(serdesstrobe, pads.data1_p, pads.data1_n)
         self.submodules.es2 = _S6HDMIOutEncoderSerializer(serdesstrobe, pads.data2_p, pads.data2_n)
         self.comb += [
-            self.es0.d.eq(self.b),
-            self.es1.d.eq(self.g),
-            self.es2.d.eq(self.r),
-            self.es0.c.eq(Cat(self.hsync, self.vsync)),
+            sink.ready.eq(1),
+            self.es0.d.eq(sink.b),
+            self.es1.d.eq(sink.g),
+            self.es2.d.eq(sink.r),
+            self.es0.c.eq(Cat(sink.hsync, sink.vsync)),
             self.es1.c.eq(0),
             self.es2.c.eq(0),
-            self.es0.de.eq(self.de),
-            self.es1.de.eq(self.de),
-            self.es2.de.eq(self.de),
+            self.es0.de.eq(sink.de),
+            self.es1.de.eq(sink.de),
+            self.es2.de.eq(sink.de)
         ]
