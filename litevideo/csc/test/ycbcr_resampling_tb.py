@@ -17,14 +17,14 @@ class TB(Module):
         self.submodules.logger = PacketLogger(EndpointDescription([("data", 24)]))
 
         self.comb += [
-            self.streamer.source.connect(self.ycbcr444to422.sink, leave_out=["data"]),
+            self.streamer.source.connect(self.ycbcr444to422.sink, omit=["data"]),
             self.ycbcr444to422.sink.payload.y.eq(self.streamer.source.data[16:24]),
             self.ycbcr444to422.sink.payload.cb.eq(self.streamer.source.data[8:16]),
             self.ycbcr444to422.sink.payload.cr.eq(self.streamer.source.data[0:8]),
 
             self.ycbcr444to422.source.connect(self.ycbcr422to444.sink),
 
-            self.ycbcr422to444.source.connect(self.logger.sink, leave_out=["y", "cb", "cr"]),
+            self.ycbcr422to444.source.connect(self.logger.sink, omit=["y", "cb", "cr"]),
             self.logger.sink.data[16:24].eq(self.ycbcr422to444.source.y),
             self.logger.sink.data[8:16].eq(self.ycbcr422to444.source.cb),
             self.logger.sink.data[0:8].eq(self.ycbcr422to444.source.cr)
