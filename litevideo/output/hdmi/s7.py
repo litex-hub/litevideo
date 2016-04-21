@@ -112,7 +112,7 @@ class S7HDMIOutEncoderSerializer(Module):
 
 # This assumes a 100MHz base clock
 class S7HDMIOutClocking(Module, AutoCSR):
-    def __init__(self, clk100, pads):
+    def __init__(self, pads):
         self.clock_domains.cd_pix = ClockDomain("pix")
         self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
 
@@ -137,7 +137,7 @@ class S7HDMIOutClocking(Module, AutoCSR):
                     # VCO
                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
                     p_CLKFBOUT_MULT_F=30.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
-                    i_CLKIN1=clk100, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
+                    i_CLKIN1=ClockSignal("clk100"), i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
                     # CLK0
                     p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=self.cd_pix.clk,
