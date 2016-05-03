@@ -4,7 +4,8 @@ from litex.gen.genlib.fsm import FSM, NextState
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect.csr_eventmanager import *
 from litex.soc.interconnect import stream
-from litex.soc.interconnect import dma_lasmi
+
+from litedram.frontend.dma import LiteDRAMDMAWriter
 
 # Slot status: EMPTY=0 LOADED=1 PENDING=2
 class _Slot(Module, AutoCSR):
@@ -65,9 +66,9 @@ class _SlotArray(Module, AutoCSR):
 
 
 class DMA(Module):
-    def __init__(self, lasmim, nslots):
-        bus_aw = lasmim.aw
-        bus_dw = lasmim.dw
+    def __init__(self, dram_port, nslots):
+        bus_aw = dram_port.aw
+        bus_dw = dram_port.dw
         alignment_bits = bits_for(bus_dw//8) - 1
 
         fifo_word_width = bus_dw
@@ -107,10 +108,10 @@ class DMA(Module):
         self.comb += memory_word.eq(Cat(*pixbits))
 
         # bus accessor
-        self.submodules._bus_accessor = dma_lasmi.Writer(lasmim)
+        self.submodules._bus_accessor = LiteDRAMDMAWriter(dram_port)
         self.comb += [
-            self._bus_accessor.source.address.eq(current_address),
-            self._bus_accessor.source.data.eq(memory_word)
+            self._bus_accessor.sink.address.eq(current_address),
+            self._bus_accessor.sink.data.eq(memory_word)
         ]
 
         # control FSM
@@ -128,10 +129,10 @@ class DMA(Module):
             )
         )
         fsm.act("TRANSFER_PIXELS",
-            self.frame.ready.eq(self._bus_accessor.source.ready),
+            self.frame.ready.eq(self._bus_accessor.sink.ready),
             If(self.frame.valid,
-                self._bus_accessor.source.valid.eq(1),
-                If(self._bus_accessor.source.ready,
+                self._bus_accessor.sink.valid.eq(1),
+                If(self._bus_accessor.sink.ready,
                     count_word.eq(1),
                     If(last_word,
                         NextState("EOF")

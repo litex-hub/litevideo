@@ -2,7 +2,8 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
-from litex.soc.interconnect import dma_lasmi
+
+from litedram.frontend.dma import LiteDRAMDMAReader
 
 from litevideo.output.common import *
 from litevideo.output.hdmi.s6 import S6HDMIOutClocking, S6HDMIOutPHY
@@ -38,16 +39,16 @@ class DMAReader(Module, AutoCSR):
 
     Generates the data stream of a frame.
     """
-    def __init__(self, lasmim):
+    def __init__(self, dram_port):
         self.sink = sink = stream.Endpoint(frame_dma_layout)
-        self.source = source = stream.Endpoint([("data", lasmim.dw)])
+        self.source = source = stream.Endpoint([("data", dram_port.dw)])
 
         # # #
 
-        self.submodules.reader = dma_lasmi.Reader(lasmim)
+        self.submodules.reader = LiteDRAMDMAReader(dram_port)
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 
-        address = Signal(lasmim.aw)
+        address = Signal(dram_port.aw)
         address_init = Signal()
         address_inc = Signal()
         self.sync += \
@@ -139,14 +140,14 @@ class VideoOutCore(Module, AutoCSR):
 
     Generates a video stream from memory.
     """
-    def __init__(self, lasmim):
-        self.source = source = stream.Endpoint(video_out_layout(lasmim.dw))
+    def __init__(self, dram_port):
+        self.source = source = stream.Endpoint(video_out_layout(dram_port.dw))
 
         # # #
 
         self.submodules.initiator = initiator = Initiator()
         self.submodules.timing = timing = TimingGenerator()
-        self.submodules.dma = dma = DMAReader(lasmim)
+        self.submodules.dma = dma = DMAReader(dram_port)
 
         # ctrl path
         timing_done = Signal()

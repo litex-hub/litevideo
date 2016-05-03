@@ -1,24 +1,20 @@
 from litex.gen import *
 
 from litex.soc.interconnect.stream import *
-from litex.soc.interconnect import lasmi_bus
+
+from litedram.common import LiteDRAMPort
 
 from litevideo.output.core import VideoOutCore
 
 
 class TB(Module):
     def __init__(self):
-        self.lasmim = lasmi_bus.Interface(aw=32,
-                                          dw=32,
-                                          nbanks=1,
-                                          req_queue_size=1,
-                                          read_latency=1,
-                                          write_latency=1)
-        self.submodules.core = VideoOutCore(self.lasmim)
+        self.dram_port = LiteDRAMPort(aw=32, dw=32)
+        self.submodules.core = VideoOutCore(self.dram_port)
         self.comb += self.core.source.ready.eq(1)
 
 
-class LASMIMemory:
+class DRAMMemory:
     def __init__(self, width, depth, init=[]):
         self.width = width
         self.depth = depth
@@ -29,24 +25,24 @@ class LASMIMemory:
             self.mem.append(0)
 
     @passive
-    def read_generator(self, lasmim):
+    def read_generator(self, dram_port):
         address = 0
         pending = 0
         while True:
-            yield lasmim.req_ack.eq(0)
-            yield lasmim.dat_r_ack.eq(0)
+            yield dram_port.ready.eq(0)
+            yield dram_port.rdata_valid.eq(0)
             if pending:
-                yield lasmim.dat_r_ack.eq(1)
-                yield lasmim.dat_r.eq(self.mem[address%self.depth])
+                yield dram_port.rdata_valid.eq(1)
+                yield dram_port.rdata.eq(self.mem[address%self.depth])
                 yield
-                yield lasmim.dat_r_ack.eq(0)
-                yield lasmim.dat_r.eq(0)
+                yield dram_port.rdata_valid.eq(0)
+                yield dram_port.rdata.eq(0)
                 pending = 0
-            elif (yield lasmim.stb):
-                pending = not (yield lasmim.we)
-                address = (yield lasmim.adr)
+            elif (yield dram_port.valid):
+                pending = not (yield dram_port.we)
+                address = (yield dram_port.adr)
                 yield
-                yield lasmim.req_ack.eq(1)
+                yield dram_port.ready.eq(1)
             yield
 
 
@@ -75,10 +71,10 @@ def main_generator(dut):
 
 if __name__ == "__main__":
     tb = TB()
-    mem = LASMIMemory(32, 1024, [i for i in range(1024)])
+    mem = DRAMMemory(32, 1024, [i for i in range(1024)])
     generators = {
         "sys" :   [main_generator(tb),
-                   mem.read_generator(tb.lasmim)]
+                   mem.read_generator(tb.dram_port)]
     }
     clocks = {"sys": 10}
     run_simulation(tb, generators, clocks, vcd_name="sim.vcd")
