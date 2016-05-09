@@ -134,14 +134,26 @@ class TimingGenerator(Module):
                 If(vcounter == sink.vsync_end, source.vsync.eq(0))
             )
 
+modes_dw = {
+    "rgb": 24,
+    "ycbcr444": 24,
+    "ycbcr422": 16
+}
+
 
 class VideoOutCore(Module, AutoCSR):
     """Video out core
 
     Generates a video stream from memory.
     """
-    def __init__(self, dram_port):
-        self.source = source = stream.Endpoint(video_out_layout(dram_port.dw))
+    def __init__(self, dram_port, mode="rgb"):
+        try:
+            dw = modes_dw[mode]
+        except:
+            raise ValueError("Unsupported {} video mode".format(mode))
+        assert dram_port.dw >= dw
+        assert dram_port.dw == 2**log2_int(dw, need_pow2=False)
+        self.source = source = stream.Endpoint(video_out_layout(dw))
 
         # # #
 
