@@ -184,9 +184,9 @@ class VideoOutCore(Module, AutoCSR):
                                       (dma.sink.ready | dma_done)),
 
             # combine timing and dma
-            source.valid.eq(timing.source.valid & (-timing.source.de | dma.source.valid)),
+            source.valid.eq(timing.source.valid & (~timing.source.de | dma.source.valid)),
             timing.source.ready.eq(source.valid & source.ready),
-            dma.source.ready.eq(-timing.source.de & source.valid & source.ready)
+            dma.source.ready.eq(timing.source.de & source.valid & source.ready)
         ]
 
         # data path
@@ -196,6 +196,8 @@ class VideoOutCore(Module, AutoCSR):
             initiator.source.connect(dma.sink, keep=list_signals(frame_dma_layout)),
 
             # combine timing and dma
-        	timing.source.connect(source, keep=list_signals(frame_dma_layout)),
-            dma.source.connect(source, keep=["data"]),
+            source.de.eq(timing.source.de),
+            source.hsync.eq(timing.source.hsync),
+            source.vsync.eq(timing.source.vsync),
+            source.data.eq(dma.source.data)
         ]

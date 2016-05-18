@@ -29,20 +29,20 @@ class DRAMMemory:
         address = 0
         pending = 0
         while True:
-            yield dram_port.ready.eq(0)
-            yield dram_port.rdata_valid.eq(0)
+            yield dram_port.cmd.ready.eq(0)
+            yield dram_port.rdata.valid.eq(0)
             if pending:
-                yield dram_port.rdata_valid.eq(1)
-                yield dram_port.rdata.eq(self.mem[address%self.depth])
+                yield dram_port.rdata.valid.eq(1)
+                yield dram_port.rdata.data.eq(self.mem[address%self.depth])
                 yield
-                yield dram_port.rdata_valid.eq(0)
-                yield dram_port.rdata.eq(0)
+                yield dram_port.rdata.valid.eq(0)
+                yield dram_port.rdata.data.eq(0)
                 pending = 0
-            elif (yield dram_port.valid):
-                pending = not (yield dram_port.we)
-                address = (yield dram_port.adr)
+            elif (yield dram_port.cmd.valid):
+                pending = not (yield dram_port.cmd.we)
+                address = (yield dram_port.cmd.adr)
                 yield
-                yield dram_port.ready.eq(1)
+                yield dram_port.cmd.ready.eq(1)
             yield
 
 
@@ -54,13 +54,13 @@ def main_generator(dut):
     yield dut.core.initiator.hsync_end.storage.eq(20)
     yield dut.core.initiator.hscan.storage.eq(24)
 
-    yield dut.core.initiator.vres.storage.eq(32)
-    yield dut.core.initiator.vsync_start.storage.eq(34)
-    yield dut.core.initiator.vsync_end.storage.eq(36)
-    yield dut.core.initiator.vscan.storage.eq(48)
+    yield dut.core.initiator.vres.storage.eq(16)
+    yield dut.core.initiator.vsync_start.storage.eq(18)
+    yield dut.core.initiator.vsync_end.storage.eq(20)
+    yield dut.core.initiator.vscan.storage.eq(24)
     
     yield dut.core.initiator.base.storage.eq(0)
-    yield dut.core.initiator.end.storage.eq(16*32)
+    yield dut.core.initiator.end.storage.eq(16*16)
     
     yield
     yield dut.core.initiator.enable.storage.eq(1)
