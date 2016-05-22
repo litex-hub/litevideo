@@ -11,7 +11,8 @@ class TB(Module):
     def __init__(self):
         self.dram_port = LiteDRAMPort(aw=32, dw=32)
         self.submodules.core = VideoOutCore(self.dram_port)
-        self.comb += self.core.source.ready.eq(1)
+        self.sync += \
+            self.core.source.ready.eq(~self.core.source.ready)
 
 
 class DRAMMemory:
@@ -60,18 +61,30 @@ def main_generator(dut):
     yield dut.core.initiator.vscan.storage.eq(24)
     
     yield dut.core.initiator.base.storage.eq(0)
-    yield dut.core.initiator.end.storage.eq(16*16)
+    yield dut.core.initiator.end.storage.eq(16*16-1)
     
     yield
     yield dut.core.initiator.enable.storage.eq(1)
     yield
+    datas = []
     for i in range(4096):
+        if ((yield dut.core.source.valid) and
+            (yield dut.core.source.ready) and
+            (yield dut.core.source.de)):
+            datas.append((yield dut.core.source.data))
         yield
+    errors = 0
+    last = -1
+    for data in datas:
+        if (data != (last + 1)%256):
+            errors += 1
+        last = data
+    print("errors: {:d}".format(errors))
 
 
 if __name__ == "__main__":
     tb = TB()
-    mem = DRAMMemory(32, 1024, [i for i in range(1024)])
+    mem = DRAMMemory(32, 1024, [i for i in range(256)])
     generators = {
         "sys" :   [main_generator(tb),
                    mem.read_generator(tb.dram_port)]
