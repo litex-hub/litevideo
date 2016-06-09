@@ -5,8 +5,6 @@ from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
 
-# TODO:
-# - see if we can regroup some stages without impacting timings (would reduce latency and registers).
 
 def rgb2ycbcr_coefs(dw, cw=None):
     return {

@@ -5,7 +5,6 @@ from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
 
-datapath_latency = 2
 
 @CEInserter()
 class YCbCr422to444Datapath(Module):

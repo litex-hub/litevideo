@@ -89,7 +89,8 @@ class YCbCr2RGBDatapath(Module):
         b = Signal((ycbcr_w + 4, True))
         self.sync += [
             r.eq(y_minus_yoffset + cr_minus_coffset_mult_acoef[coef_w-2:]),
-            g.eq(y_minus_yoffset + cb_minus_coffset_mult_bcoef[coef_w-2:] + cr_minus_coffset_mult_ccoef[coef_w-2:]),
+            g.eq(y_minus_yoffset + cb_minus_coffset_mult_bcoef[coef_w-2:] +
+                                   cr_minus_coffset_mult_ccoef[coef_w-2:]),
             b.eq(y_minus_yoffset + cb_minus_coffset_mult_dcoef[coef_w-2:])
         ]
 
