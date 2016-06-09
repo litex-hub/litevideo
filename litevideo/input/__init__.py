@@ -14,7 +14,7 @@ from litevideo.input.dma import DMA
 
 
 class HDMIIn(Module, AutoCSR):
-    def __init__(self, pads, lasmim, n_dma_slots=2, fifo_depth=512):
+    def __init__(self, pads, dram_port, n_dma_slots=2, fifo_depth=512):
         self.submodules.edid = EDID(pads)
         self.submodules.clocking = Clocking(pads)
 
@@ -67,7 +67,7 @@ class HDMIIn(Module, AutoCSR):
             self.resdetection.vsync.eq(self.syncpol.vsync)
         ]
 
-        self.submodules.frame = FrameExtraction(lasmim.dw, fifo_depth)
+        self.submodules.frame = FrameExtraction(dram_port.dw, fifo_depth)
         self.comb += [
             self.frame.valid_i.eq(self.syncpol.valid_o),
             self.frame.de.eq(self.syncpol.de),
@@ -77,7 +77,7 @@ class HDMIIn(Module, AutoCSR):
             self.frame.b.eq(self.syncpol.b)
         ]
 
-        self.submodules.dma = DMA(lasmim, n_dma_slots)
+        self.submodules.dma = DMA(dram_port, n_dma_slots)
         self.comb += self.frame.frame.connect(self.dma.frame)
         self.ev = self.dma.ev
 
