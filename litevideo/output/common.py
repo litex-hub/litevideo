@@ -47,4 +47,8 @@ def video_out_layout(dw):
 def list_signals(layout):
     return [f[0] for f in layout]
 
-phy_layout = frame_timing_layout + [("r", 8), ("g", 8), ("b", 8)]
+
+def phy_layout():
+    param_layout = frame_timing_layout
+    payload_layout = [("r", 8), ("g", 8), ("b", 8)]
+    return stream.EndpointDescription(payload_layout, param_layout)

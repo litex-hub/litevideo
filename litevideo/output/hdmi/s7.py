@@ -166,7 +166,7 @@ class S7HDMIOutClocking(Module, AutoCSR):
 
 class S7HDMIOutPHY(Module):
     def __init__(self, pads):
-        self.sink = sink = stream.Endpoint(phy_layout)
+        self.sink = sink = stream.Endpoint(phy_layout())
 
         # # #
 
