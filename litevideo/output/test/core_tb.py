@@ -9,7 +9,7 @@ from litevideo.output.core import VideoOutCore
 
 class TB(Module):
     def __init__(self):
-        self.dram_port = LiteDRAMPort(aw=32, dw=32)
+        self.dram_port = LiteDRAMPort(aw=32, dw=32, cd="video")
         self.submodules.core = VideoOutCore(self.dram_port)
         self.sync += \
             self.core.source.ready.eq(~self.core.source.ready)
@@ -47,9 +47,21 @@ class DRAMMemory:
             yield
 
 
+video_data = []
+
+@passive
+def video_capture_generator(dut):
+    while True:
+        if ((yield dut.core.source.valid) and
+            (yield dut.core.source.ready) and
+            (yield dut.core.source.de)):
+            video_data.append((yield dut.core.source.data))
+        yield
+
 def main_generator(dut):
     for i in range(100):
         yield
+    # init video
     yield dut.core.initiator.hres.storage.eq(16)
     yield dut.core.initiator.hsync_start.storage.eq(18)
     yield dut.core.initiator.hsync_end.storage.eq(20)
@@ -66,16 +78,15 @@ def main_generator(dut):
     yield
     yield dut.core.initiator.enable.storage.eq(1)
     yield
-    datas = []
+
+    # delay
     for i in range(4096):
-        if ((yield dut.core.source.valid) and
-            (yield dut.core.source.ready) and
-            (yield dut.core.source.de)):
-            datas.append((yield dut.core.source.data))
-        yield
+       yield
+
+    # check video data
     errors = 0
     last = -1
-    for data in datas:
+    for data in video_data:
         if (data != (last + 1)%256):
             errors += 1
         last = data
@@ -83,11 +94,15 @@ def main_generator(dut):
 
 
 if __name__ == "__main__":
-    tb = TB()
-    mem = DRAMMemory(32, 1024, [i for i in range(256)])
-    generators = {
-        "sys" :   [main_generator(tb),
-                   mem.read_generator(tb.dram_port)]
-    }
-    clocks = {"sys": 10}
-    run_simulation(tb, generators, clocks, vcd_name="sim.vcd")
+    for video_clk_ns in  [20, 10, 5]:
+        tb = TB()
+        mem = DRAMMemory(32, 1024, [i for i in range(256)])
+        generators = {
+            "sys":   [main_generator(tb)],
+            "video": [video_capture_generator(tb),
+                      mem.read_generator(tb.dram_port)],
+        }
+        clocks = {"sys":   10,
+                  "video": video_clk_ns}
+        video_data = []
+        run_simulation(tb, generators, clocks, vcd_name="sim.vcd")

@@ -15,23 +15,30 @@ class Initiator(Module, AutoCSR):
 
     Generates the H/V and dma parameters of a frame.
     """
-    def __init__(self):
+    def __init__(self, cd):
         self.source = stream.Endpoint(frame_parameter_layout +
                                       frame_dma_layout)
 
         # # #
 
+        cdc = stream.AsyncFIFO(self.source.description, 4)
+        cdc = ClockDomainsRenamer({"write": "sys",
+                                   "read": cd})(cdc)
+        self.submodules += cdc
+
         self.enable = CSRStorage()
         for name, width in frame_parameter_layout + frame_dma_layout:
             setattr(self, name, CSRStorage(width, name=name))
-            self.comb += getattr(self.source, name).eq(getattr(self, name).storage)
+            self.comb += getattr(cdc.sink, name).eq(getattr(self, name).storage)
         self.sync += [
             If(self.enable.storage,
-                self.source.valid.eq(1)
+                cdc.sink.valid.eq(1)
             ).Elif(self.source.ready,
-                self.source.valid.eq(0)
+                cdc.sink.valid.eq(0)
             )
         ]
+
+        self.comb += cdc.source.connect(self.source)
 
 
 class DMAReader(Module, AutoCSR):
@@ -157,14 +164,17 @@ class VideoOutCore(Module, AutoCSR):
 
         # # #
 
-        self.submodules.initiator = initiator = Initiator()
-        self.submodules.timing = timing = TimingGenerator()
-        self.submodules.dma = dma = DMAReader(dram_port)
+        cd = dram_port.cd
+
+        self.submodules.initiator = initiator = Initiator(cd)
+        self.submodules.timing = timing = ClockDomainsRenamer(cd)(TimingGenerator())
+        self.submodules.dma = dma = ClockDomainsRenamer(cd)(DMAReader(dram_port))
 
         # ctrl path
         timing_done = Signal()
         dma_done = Signal()
-        self.sync += [
+        cd_sync = getattr(self.sync, cd)
+        cd_sync += [
             If(initiator.source.ready,
                 timing_done.eq(0)
             ).Elif(timing.sink.ready,
