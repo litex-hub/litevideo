@@ -46,7 +46,7 @@ class DMAReader(Module, AutoCSR):
 
     Generates the data stream of a frame.
     """
-    def __init__(self, dram_port):
+    def __init__(self, dram_port, fifo_depth=512):
         self.sink = sink = stream.Endpoint(frame_dma_layout)
         self.source = source = stream.Endpoint([("data", dram_port.dw)])
 
@@ -54,6 +54,7 @@ class DMAReader(Module, AutoCSR):
 
         self.submodules.reader = LiteDRAMDMAReader(dram_port)
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.submodules.fifo = stream.SyncFIFO(source.description, fifo_depth)
 
         address = Signal(dram_port.aw)
         address_init = Signal()
@@ -83,7 +84,8 @@ class DMAReader(Module, AutoCSR):
         )
         self.comb += [
             self.reader.sink.address.eq(address),
-            self.reader.source.connect(self.source)
+            self.reader.source.connect(self.fifo.sink),
+            self.fifo.source.connect(self.source)
         ]
 
 

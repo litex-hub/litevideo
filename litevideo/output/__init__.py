@@ -38,30 +38,29 @@ class VideoOut(Module, AutoCSR):
         cd = dram_port.cd
 
         self.submodules.core = core = VideoOutCore(dram_port, mode)
-        self.submodules.fifo = fifo = ClockDomainsRenamer(cd)(stream.SyncFIFO(self.core.source.description, 512))
         self.submodules.driver = driver = Driver(device, pads, external_clocking)
-        self.comb += core.source.connect(fifo.sink)
 
         if mode == "rgb":
             self.comb += [
-                fifo.source.connect(driver.sink, omit=["data"]),
-                driver.sink.r.eq(fifo.source.data[:8]),
-                driver.sink.g.eq(fifo.source.data[8:16]),
-                driver.sink.b.eq(fifo.source.data[16:])
+                core.source.connect(driver.sink, omit=["data"]),
+                driver.sink.r.eq(core.source.data[:8]),
+                driver.sink.g.eq(core.source.data[8:16]),
+                driver.sink.b.eq(core.source.data[16:])
             ]
 
         elif mode == "ycbcr444":
             ycbcr2rgb = ClockDomainsRenamer(cd)(YCbCr2RGB())
             sync_delay = SyncDelay(ycbcr2rgb.latency,
-                                   fifo.source.de,
-                                   fifo.source.vsync,
-                                   fifo.source.hsync)
+                                   core.source.de,
+                                   core.source.vsync,
+                                   core.source.hsync)
             self.submodules += ycbcr2rgb, sync_delay
             self.comb += [
-                ycbcr2rgb.sink.valid.eq(fifo.source.valid),
-                ycbcr2rgb.sink.y.eq(fifo.source.data[:8]),
-                ycbcr2rgb.sink.cb.eq(fifo.source.data[8:16]),
-                ycbcr2rgb.sink.cr.eq(fifo.source.data[16:])
+                ycbcr2rgb.sink.valid.eq(core.source.valid),
+                ycbcr2rgb.sink.y.eq(core.source.data[:8]),
+                ycbcr2rgb.sink.cb.eq(core.source.data[8:16]),
+                ycbcr2rgb.sink.cr.eq(core.source.data[16:]),
+                core.source.ready.eq(ycbcr2rgb.sink.ready)
             ]
             self.comb += [
                 ycbcr2rgb.source.connect(driver.sink),
@@ -73,21 +72,23 @@ class VideoOut(Module, AutoCSR):
             ycbcr422to444 = ClockDomainsRenamer(cd)(YCbCr422to444())
             ycbcr2rgb = ClockDomainsRenamer(cd)(YCbCr2RGB())
             sync_delay = SyncDelay(ycbcr2rgb.latency + ycbcr422to444.latency,
-                                   fifo.source.de,
-                                   fifo.source.vsync,
-                                   fifo.source.hsync)
+                                   core.source.de,
+                                   core.source.vsync,
+                                   core.source.hsync)
             self.submodules += ycbcr422to444, ycbcr2rgb, sync_delay
             self.comb += [
-                ycbcr422to444.sink.valid.eq(fifo.source.valid),
-                ycbcr422to444.sink.y.eq(fifo.source.data[:8]),
-                ycbcr422to444.sink.cb_cr.eq(fifo.source.data[8:16]),
+                ycbcr422to444.sink.valid.eq(core.source.valid),
+                ycbcr422to444.sink.y.eq(core.source.data[:8]),
+                ycbcr422to444.sink.cb_cr.eq(core.source.data[8:16]),
+                core.source.ready.eq(ycbcr422to444.sink.ready),
                 ycbcr422to444.source.connect(ycbcr2rgb.sink)
             ]
             self.comb += [
+                ycbcr422to444.source.connect(ycbcr2rgb.sink),
                 ycbcr2rgb.source.connect(driver.sink),
                 driver.sink.de.eq(sync_delay.de),
                 driver.sink.vsync.eq(sync_delay.vsync),
-                driver.sink.hsync.eq(sync_dela)
+                driver.sink.hsync.eq(sync_delay.hsync)
             ]
         else:
             raise ValueError("Video mode {} not supported".format(mode))
