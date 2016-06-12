@@ -114,7 +114,8 @@ class S7HDMIOutEncoderSerializer(Module):
 
 # This assumes a 100MHz base clock
 class S7HDMIOutClocking(Module, AutoCSR):
-    def __init__(self, pads):
+    def __init__(self, pads, external_clocking):
+        # TODO: implement external clocking
         self.clock_domains.cd_pix = ClockDomain("pix")
         self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
 

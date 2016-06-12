@@ -202,14 +202,15 @@ class _S6HDMIOutEncoderSerializer(Module):
 
 
 class S6HDMIOutPHY(Module):
-    def __init__(self, serdesstrobe, pads):
+    def __init__(self, pads):
+        self.serdesstrobe = Signal()
         self.sink = sink = stream.Endpoint(phy_layout())
 
         # # #
 
-        self.submodules.es0 = _S6HDMIOutEncoderSerializer(serdesstrobe, pads.data0_p, pads.data0_n)
-        self.submodules.es1 = _S6HDMIOutEncoderSerializer(serdesstrobe, pads.data1_p, pads.data1_n)
-        self.submodules.es2 = _S6HDMIOutEncoderSerializer(serdesstrobe, pads.data2_p, pads.data2_n)
+        self.submodules.es0 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data0_p, pads.data0_n)
+        self.submodules.es1 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data1_p, pads.data1_n)
+        self.submodules.es2 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data2_p, pads.data2_n)
         self.comb += [
             sink.ready.eq(1),
             self.es0.d.eq(sink.b),

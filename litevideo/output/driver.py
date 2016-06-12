@@ -33,5 +33,7 @@ class Driver(Module, AutoCSR):
         self.submodules.clocking = clocking_cls[family](pads, external_clocking)
 
         # phy
-        self.submodules.hdmi_phy = phy_cls[family](self.clocking.serdesstrobe, pads)
+        self.submodules.hdmi_phy = phy_cls[family](pads)
+        if hasattr(self.hdmi_phy, "serdesstrobe"):
+            self.comb += self.hdmi_phy.serdesstrobe.eq(self.clocking.serdesstrobe)
         self.comb += sink.connect(self.hdmi_phy.sink)
