@@ -20,9 +20,9 @@ class SyncDelay(Module):
             next_vsync = Signal()
             next_hsync = Signal()
             self.sync.pix += [
-                next_de.eq(de),
-                next_vsync.eq(vsync),
-                next_hsync.eq(hsync),
+                next_de.eq(self.de),
+                next_vsync.eq(self.vsync),
+                next_hsync.eq(self.hsync),
             ]
             self.de = next_de
             self.vsync = next_vsync
@@ -71,20 +71,21 @@ class VideoOut(Module, AutoCSR):
         elif mode == "ycbcr422":
             ycbcr422to444 = ClockDomainsRenamer(cd)(YCbCr422to444())
             ycbcr2rgb = ClockDomainsRenamer(cd)(YCbCr2RGB())
-            sync_delay = SyncDelay(ycbcr2rgb.latency + ycbcr422to444.latency,
+            sync_delay = SyncDelay(ycbcr422to444.latency + ycbcr2rgb.latency,
                                    core.source.de,
                                    core.source.vsync,
                                    core.source.hsync)
             self.submodules += ycbcr422to444, ycbcr2rgb, sync_delay
+            self.ycbcr422to444 = ycbcr422to444
+            self.ycbcr2rgb = ycbcr2rgb
             self.comb += [
                 ycbcr422to444.sink.valid.eq(core.source.valid),
                 ycbcr422to444.sink.y.eq(core.source.data[:8]),
                 ycbcr422to444.sink.cb_cr.eq(core.source.data[8:16]),
                 core.source.ready.eq(ycbcr422to444.sink.ready),
-                ycbcr422to444.source.connect(ycbcr2rgb.sink)
-            ]
-            self.comb += [
+
                 ycbcr422to444.source.connect(ycbcr2rgb.sink),
+
                 ycbcr2rgb.source.connect(driver.sink),
                 driver.sink.de.eq(sync_delay.de),
                 driver.sink.vsync.eq(sync_delay.vsync),
