@@ -188,8 +188,8 @@ class VideoOutCore(Module, AutoCSR):
         ]
         self.comb += [
             # dispatch initiator parameters to timing & dma
-            timing.sink.valid.eq(initiator.source.valid & ~timing_done),
-            dma.sink.valid.eq(initiator.source.valid & ~dma_done),
+            timing.sink.valid.eq(initiator.source.valid),
+            dma.sink.valid.eq(initiator.source.valid),
             initiator.source.ready.eq((timing.sink.ready | timing_done) &
                                       (dma.sink.ready | dma_done)),
 
