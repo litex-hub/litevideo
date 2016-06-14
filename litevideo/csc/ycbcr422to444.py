@@ -20,7 +20,7 @@ class YCbCr422to444Datapath(Module):
     def __init__(self, dw):
         self.sink = sink = Record(ycbcr422_layout(dw))
         self.source = source = Record(ycbcr444_layout(dw))
-        self.last = Signal()
+        self.first = Signal()
 
         # # #
 
@@ -34,20 +34,25 @@ class YCbCr422to444Datapath(Module):
 
         # parity
         parity = Signal()
-        self.sync += If(self.last, parity.eq(0)).Else(parity.eq(~parity))
+        self.sync += \
+            If(self.first | ~parity,
+                parity.eq(1)
+            ).Else(
+                parity.eq(0)
+            )
 
         # output
-        self.sync += [
+        self.sync += \
             If(parity,
                 self.source.y.eq(ycbcr_delayed[1].y),
                 self.source.cb.eq(ycbcr_delayed[1].cb_cr),
-                self.source.cr.eq(sink.cb_cr),
+                self.source.cr.eq(sink.cb_cr)
             ).Else(
                 self.source.y.eq(ycbcr_delayed[1].y),
                 self.source.cb.eq(ycbcr_delayed[2].cb_cr),
                 self.source.cr.eq(ycbcr_delayed[1].cb_cr)
             )
-        ]
+
 
 class YCbCr422to444(PipelinedActor, Module):
     def __init__(self, dw=8):
@@ -58,10 +63,7 @@ class YCbCr422to444(PipelinedActor, Module):
 
         self.submodules.datapath = YCbCr422to444Datapath(dw)
         PipelinedActor.__init__(self, self.datapath.latency)
-        self.comb += [
-            self.datapath.last.eq(sink.valid & sink.last),
-            self.datapath.ce.eq(sink.valid & self.pipe_ce)
-        ]
+        self.comb += self.datapath.ce.eq(source.ready)
         for name in ["y", "cb_cr"]:
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
         for name in ["y", "cb", "cr"]:
