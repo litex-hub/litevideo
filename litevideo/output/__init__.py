@@ -47,27 +47,6 @@ class VideoOut(Module, AutoCSR):
                 driver.sink.g.eq(core.source.data[8:16]),
                 driver.sink.b.eq(core.source.data[16:])
             ]
-
-        elif mode == "ycbcr444":
-            ycbcr2rgb = ClockDomainsRenamer(cd)(YCbCr2RGB())
-            sync_delay = SyncDelay(ycbcr2rgb.latency,
-                                   core.source.de,
-                                   core.source.vsync,
-                                   core.source.hsync)
-            self.submodules += ycbcr2rgb, sync_delay
-            self.comb += [
-                ycbcr2rgb.sink.valid.eq(core.source.valid),
-                ycbcr2rgb.sink.y.eq(core.source.data[:8]),
-                ycbcr2rgb.sink.cb.eq(core.source.data[8:16]),
-                ycbcr2rgb.sink.cr.eq(core.source.data[16:]),
-                core.source.ready.eq(ycbcr2rgb.sink.ready)
-            ]
-            self.comb += [
-                ycbcr2rgb.source.connect(driver.sink),
-                driver.sink.de.eq(sync_delay.de),
-                driver.sink.vsync.eq(sync_delay.vsync),
-                driver.sink.hsync.eq(sync_dela)
-            ]
         elif mode == "ycbcr422":
             ycbcr422to444 = ClockDomainsRenamer(cd)(YCbCr422to444())
             ycbcr2rgb = ClockDomainsRenamer(cd)(YCbCr2RGB())
@@ -76,12 +55,14 @@ class VideoOut(Module, AutoCSR):
                                    core.source.vsync,
                                    core.source.hsync)
             self.submodules += ycbcr422to444, ycbcr2rgb, sync_delay
-            self.ycbcr422to444 = ycbcr422to444
-            self.ycbcr2rgb = ycbcr2rgb
+            de_r = Signal()
+            sync_cd = getattr(self.sync, cd)
+            sync_cd += de_r.eq(core.source.de)
             self.comb += [
                 ycbcr422to444.sink.valid.eq(core.source.valid),
                 ycbcr422to444.sink.y.eq(core.source.data[:8]),
-                ycbcr422to444.sink.cb_cr.eq(core.source.data[8:16]),
+                ycbcr422to444.sink.cb_cr.eq(core.source.data[8:]),
+                ycbcr422to444.datapath.first.eq(core.source.de & ~de_r),
                 core.source.ready.eq(ycbcr422to444.sink.ready),
 
                 ycbcr422to444.source.connect(ycbcr2rgb.sink),
