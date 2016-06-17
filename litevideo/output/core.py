@@ -55,12 +55,16 @@ class DMAReader(Module, AutoCSR):
         self.submodules.reader = LiteDRAMDMAReader(dram_port, fifo_depth)
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 
+        shift = log2_int(dram_port.dw//8)
+        base = self.sink.base[shift:]
+        length = self.sink.length[shift:]
+
         address = Signal(dram_port.aw)
         address_init = Signal()
         address_inc = Signal()
         self.sync += \
             If(address_init,
-                address.eq(self.sink.base)
+                address.eq(base)
             ).Elif(address_inc,
                 address.eq(address + 1)
             )
@@ -75,7 +79,7 @@ class DMAReader(Module, AutoCSR):
             self.reader.sink.valid.eq(1),
             If(self.reader.sink.ready,
                 address_inc.eq(1),
-                If(address == self.sink.end,
+                If(address == (base + length - 1),
                     self.sink.ready.eq(1),
                     NextState("IDLE")
                 )

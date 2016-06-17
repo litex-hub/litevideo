@@ -9,7 +9,7 @@ from litevideo.output.core import VideoOutCore
 
 class TB(Module):
     def __init__(self):
-        self.dram_port = LiteDRAMPort(aw=32, dw=32, cd="video")
+        self.dram_port = LiteDRAMPort(mode="read", aw=32, dw=32, cd="video")
         self.submodules.core = VideoOutCore(self.dram_port)
         self.sync += \
             self.core.source.ready.eq(~self.core.source.ready)
@@ -71,10 +71,10 @@ def main_generator(dut):
     yield dut.core.initiator.vsync_start.storage.eq(18)
     yield dut.core.initiator.vsync_end.storage.eq(20)
     yield dut.core.initiator.vscan.storage.eq(24)
-    
+
     yield dut.core.initiator.base.storage.eq(0)
-    yield dut.core.initiator.end.storage.eq(16*16-1)
-    
+    yield dut.core.initiator.length.storage.eq(16*16*4)
+
     yield
     yield dut.core.initiator.enable.storage.eq(1)
     yield

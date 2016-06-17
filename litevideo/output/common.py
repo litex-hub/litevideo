@@ -28,7 +28,7 @@ frame_parameter_layout = [
 
 frame_dma_layout = [
     ("base", 32),
-    ("end",  32)
+    ("length",  32)
 ]
 
 frame_timing_layout = [
