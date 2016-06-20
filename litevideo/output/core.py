@@ -56,8 +56,8 @@ class DMAReader(Module, AutoCSR):
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 
         shift = log2_int(dram_port.dw//8)
-        base = self.sink.base[shift:]
-        length = self.sink.length[shift:]
+        base = self.sink.base[shift:shift+dram_port.aw]
+        length = self.sink.length[shift:shift+dram_port.aw]
 
         address = Signal(dram_port.aw)
         address_init = Signal()
