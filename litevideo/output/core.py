@@ -147,7 +147,6 @@ class TimingGenerator(Module):
 
 modes_dw = {
     "rgb": 24,
-    "ycbcr444": 24,
     "ycbcr422": 16
 }
 
