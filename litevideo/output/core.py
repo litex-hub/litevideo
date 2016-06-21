@@ -174,32 +174,22 @@ class VideoOutCore(Module, AutoCSR):
         self.submodules.dma = dma = ClockDomainsRenamer(cd)(DMAReader(dram_port))
 
         # ctrl path
-        timing_done = Signal()
-        dma_done = Signal()
-        cd_sync = getattr(self.sync, cd)
-        cd_sync += [
-            If(initiator.source.ready,
-                timing_done.eq(0)
-            ).Elif(timing.sink.ready,
-                timing_done.eq(1)
-            ),
-            If(initiator.source.ready,
-                dma_done.eq(0)
-            ).Elif(dma.sink.ready,
-                dma_done.eq(1)
-            )
-        ]
         self.comb += [
             # dispatch initiator parameters to timing & dma
             timing.sink.valid.eq(initiator.source.valid),
             dma.sink.valid.eq(initiator.source.valid),
-            initiator.source.ready.eq((timing.sink.ready | timing_done) &
-                                      (dma.sink.ready | dma_done)),
+            initiator.source.ready.eq(timing.sink.ready),
 
             # combine timing and dma
             source.valid.eq(timing.source.valid & (~timing.source.de | dma.source.valid)),
-            timing.source.ready.eq(source.valid & source.ready),
-            dma.source.ready.eq(timing.source.de & source.valid & source.ready)
+            If(source.valid & source.ready,
+                timing.source.ready.eq(1),
+                dma.source.ready.eq(timing.source.de)
+            # flush dma/timing when disabled
+            ).Elif(~initiator.source.valid,
+                timing.source.ready.eq(1),
+                dma.source.ready.eq(1)
+            )
         ]
 
         # data path

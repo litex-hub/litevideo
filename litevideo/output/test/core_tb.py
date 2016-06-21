@@ -89,7 +89,9 @@ def main_generator(dut):
     for data in video_data:
         if (data != (last + 1)%256):
             errors += 1
+            print(data)
         last = data
+    print(video_data)
     print("errors: {:d}".format(errors))
 
 
