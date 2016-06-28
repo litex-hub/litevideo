@@ -60,17 +60,17 @@ class DMAReader(Module, AutoCSR):
         length = self.sink.length[shift:shift+dram_port.aw]
 
         address = Signal(dram_port.aw)
-        address_init = Signal()
+        address_clr = Signal()
         address_inc = Signal()
         self.sync += \
-            If(address_init,
-                address.eq(base)
+            If(address_clr,
+                address.eq(0)
             ).Elif(address_inc,
                 address.eq(address + 1)
             )
 
         fsm.act("IDLE",
-            address_init.eq(1),
+            address_clr.eq(1),
             If(sink.valid,
                 NextState("READ")
             )
@@ -79,14 +79,14 @@ class DMAReader(Module, AutoCSR):
             self.reader.sink.valid.eq(1),
             If(self.reader.sink.ready,
                 address_inc.eq(1),
-                If(address == (base + length - 1),
+                If(address == (length - 1),
                     self.sink.ready.eq(1),
                     NextState("IDLE")
                 )
             )
         )
         self.comb += [
-            self.reader.sink.address.eq(address),
+            self.reader.sink.address.eq(base + address),
             self.reader.source.connect(self.source)
         ]
 
