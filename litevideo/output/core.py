@@ -13,7 +13,7 @@ from litevideo.output.hdmi.s7 import S7HDMIOutClocking, S7HDMIOutPHY
 class Initiator(Module, AutoCSR):
     """Initiator
 
-    Generates the H/V and dma parameters of a frame.
+    Generates the H/V and DMA parameters of a frame.
     """
     def __init__(self, cd):
         self.source = stream.Endpoint(frame_parameter_layout +
@@ -145,8 +145,9 @@ class TimingGenerator(Module):
                 If(vcounter == sink.vsync_end, source.vsync.eq(0))
             )
 
+
 modes_dw = {
-    "rgb": 24,
+    "rgb":      24,
     "ycbcr422": 16
 }
 

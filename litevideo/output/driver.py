@@ -30,6 +30,8 @@ class Driver(Module, AutoCSR):
         # # #
 
         family = device[:3]
+
+        # clocking
         self.submodules.clocking = clocking_cls[family](pads, external_clocking)
 
         # phy
