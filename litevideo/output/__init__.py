@@ -3,6 +3,7 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
+from litevideo.output.common import *
 from litevideo.output.core import VideoOutCore
 from litevideo.output.driver import Driver
 
@@ -10,23 +11,20 @@ from litevideo.csc.ycbcr2rgb import YCbCr2RGB
 from litevideo.csc.ycbcr422to444 import YCbCr422to444
 
 
-class SyncDelay(Module):
-    def __init__(self, latency, de, vsync, hsync):
-        self.de = de
-        self.vsync = vsync
-        self.hsync = hsync
-        for i in range(latency):
-            next_de = Signal()
-            next_vsync = Signal()
-            next_hsync = Signal()
-            self.sync.pix += [
-                next_de.eq(self.de),
-                next_vsync.eq(self.vsync),
-                next_hsync.eq(self.hsync),
-            ]
-            self.de = next_de
-            self.vsync = next_vsync
-            self.hsync = next_hsync
+class TimingDelay(Module):
+    def __init__(self, latency):
+        self.sink = stream.Endpoint(frame_timing_layout)
+        self.source = stream.Endpoint(frame_timing_layout)
+
+        # # #
+
+        for name in list_signals(frame_timing_layout):
+            s = getattr(self.sink, name)
+            for i in range(latency):
+                next_s = Signal()
+                self.sync += next_s.eq(s)
+                s = next_s
+            self.comb += getattr(self.source, name).eq(s)
 
 
 class VideoOut(Module, AutoCSR):
@@ -50,11 +48,11 @@ class VideoOut(Module, AutoCSR):
         elif mode == "ycbcr422":
             ycbcr422to444 = ClockDomainsRenamer(cd)(YCbCr422to444())
             ycbcr2rgb = ClockDomainsRenamer(cd)(YCbCr2RGB())
-            sync_delay = SyncDelay(ycbcr422to444.latency + ycbcr2rgb.latency,
-                                   core.source.de,
-                                   core.source.vsync,
-                                   core.source.hsync)
-            self.submodules += ycbcr422to444, ycbcr2rgb, sync_delay
+            timing_delay = TimingDelay(ycbcr422to444.latency + ycbcr2rgb.latency)
+            timing_delay = ClockDomainsRenamer(cd)(timing_delay)
+            self.submodules += ycbcr422to444, ycbcr2rgb, timing_delay
+
+            # data / control
             de_r = Signal()
             sync_cd = getattr(self.sync, cd)
             sync_cd += de_r.eq(core.source.de)
@@ -67,10 +65,17 @@ class VideoOut(Module, AutoCSR):
 
                 ycbcr422to444.source.connect(ycbcr2rgb.sink),
 
-                ycbcr2rgb.source.connect(driver.sink),
-                driver.sink.de.eq(sync_delay.de),
-                driver.sink.vsync.eq(sync_delay.vsync),
-                driver.sink.hsync.eq(sync_delay.hsync)
+                ycbcr2rgb.source.connect(driver.sink)
+            ]
+            # timing
+            self.comb += [
+                timing_delay.sink.de.eq(core.source.de),
+                timing_delay.sink.vsync.eq(core.source.vsync),
+                timing_delay.sink.hsync.eq(core.source.hsync),
+
+                driver.sink.de.eq(timing_delay.source.de),
+                driver.sink.vsync.eq(timing_delay.source.vsync),
+                driver.sink.hsync.eq(timing_delay.source.hsync)
             ]
         else:
             raise ValueError("Video mode {} not supported".format(mode))
