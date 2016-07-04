@@ -20,7 +20,7 @@ class YCbCr444to422Datapath(Module):
     def __init__(self, dw):
         self.sink = sink = Record(ycbcr444_layout(dw))
         self.source = source = Record(ycbcr422_layout(dw))
-        self.last = Signal()
+        self.first = Signal()
 
         # # #
 
@@ -34,7 +34,12 @@ class YCbCr444to422Datapath(Module):
 
         # parity
         parity = Signal()
-        self.sync += If(self.last, parity.eq(0)).Else(parity.eq(~parity))
+        self.sync += \
+            If(self.first | ~parity,
+                parity.eq(1)
+            ).Else(
+                parity.eq(0)
+            )
 
         # compute mean of cb and cr compoments
         cb_sum = Signal(dw+1)
@@ -47,15 +52,14 @@ class YCbCr444to422Datapath(Module):
             cr_mean.eq(cr_sum[1:])
         ]
 
-        self.sync += [
+        self.sync += \
             If(parity,
                 cb_sum.eq(sink.cb + ycbcr_delayed[1].cb),
                 cr_sum.eq(sink.cr + ycbcr_delayed[1].cr)
             )
-        ]
 
         # output
-        self.sync += [
+        self.sync += \
             If(parity,
                 self.source.y.eq(ycbcr_delayed[2].y),
                 self.source.cb_cr.eq(cr_mean)
@@ -63,7 +67,6 @@ class YCbCr444to422Datapath(Module):
                 self.source.y.eq(ycbcr_delayed[2].y),
                 self.source.cb_cr.eq(cb_mean)
             )
-        ]
 
 
 class YCbCr444to422(PipelinedActor, Module):
@@ -75,10 +78,7 @@ class YCbCr444to422(PipelinedActor, Module):
 
         self.submodules.datapath = YCbCr444to422Datapath(dw)
         PipelinedActor.__init__(self, self.datapath.latency)
-        self.comb += [
-            self.datapath.last.eq(self.sink.valid & sink.last),
-            self.datapath.ce.eq(self.sink.valid & self.pipe_ce),
-        ]
+        self.comb += self.datapath.ce.eq(source.ready)
         for name in ["y", "cb", "cr"]:
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
         for name in ["y", "cb_cr"]:

@@ -145,7 +145,8 @@ class FrameExtraction(Module, AutoCSR):
             rgb2ycbcr.sink.g.eq(self.g),
             rgb2ycbcr.sink.b.eq(self.b),
             rgb2ycbcr.source.connect(chroma_downsampler.sink),
-            chroma_downsampler.source.ready.eq(1)
+            chroma_downsampler.source.ready.eq(1),
+            chroma_downsampler.datapath.first.eq(self.de & ~de_r) # XXX need clean up
         ]
         # XXX need clean up
         de = self.de
