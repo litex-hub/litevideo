@@ -32,10 +32,13 @@ class VideoOut(Module, AutoCSR):
 
     Generates a video from memory.
     """
-    def __init__(self, device, pads, dram_port,  mode="rgb", external_clocking=None):
+    def __init__(self, device, pads, dram_port,
+        mode="rgb",
+        fifo_depth=512,
+        external_clocking=None):
         cd = dram_port.cd
 
-        self.submodules.core = core = VideoOutCore(dram_port, mode)
+        self.submodules.core = core = VideoOutCore(dram_port, mode, fifo_depth)
         self.submodules.driver = driver = Driver(device, pads, external_clocking)
 
         if mode == "rgb":

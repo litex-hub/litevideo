@@ -157,7 +157,7 @@ class VideoOutCore(Module, AutoCSR):
 
     Generates a video stream from memory.
     """
-    def __init__(self, dram_port, mode="rgb"):
+    def __init__(self, dram_port, mode="rgb", fifo_depth=512):
         try:
             dw = modes_dw[mode]
         except:
@@ -172,7 +172,7 @@ class VideoOutCore(Module, AutoCSR):
 
         self.submodules.initiator = initiator = Initiator(cd)
         self.submodules.timing = timing = ClockDomainsRenamer(cd)(TimingGenerator())
-        self.submodules.dma = dma = ClockDomainsRenamer(cd)(DMAReader(dram_port))
+        self.submodules.dma = dma = ClockDomainsRenamer(cd)(DMAReader(dram_port, fifo_depth))
 
         # ctrl path
         self.comb += [
