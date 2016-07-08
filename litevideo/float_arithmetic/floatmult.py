@@ -2,6 +2,8 @@
 
 from litex.gen import *
 from litex.soc.interconnect.stream import *
+from litex.soc.interconnect.csr import *
+from migen.bank.description import *
 
 from litevideo.float_arithmetic.common import *
 
@@ -18,7 +20,7 @@ class FloatMultDatapath(Module):
 
         # delay rgb signals
         in_delayed = [sink]
-        for i in range(datapath_latency):
+        for i in range(self.latency):
             in_n = Record(in_layout(dw))
             for name in ["a", "b"]:
                 self.sync += getattr(in_n, name).eq(getattr(in_delayed[-1], name))
@@ -230,9 +232,7 @@ class FloatMult(PipelinedActor, Module, AutoCSR):
     def __init__(self, dw=16):
         self.sink = sink = stream.Endpoint(EndpointDescription(in_layout(dw)))
         self.source = source = stream.Endpoint(EndpointDescription(out_layout(dw)))
-        PipelinedActor.__init__(self, datapath_latency)
-        self.latency = datapath_latency
-
+        
         # # #
 
         self._float_in1 = CSRStorage(dw)

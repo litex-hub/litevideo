@@ -4,18 +4,18 @@ from litex.soc.interconnect.stream_sim import *
 
 from litevideo.float_arithmetic.common import *
 from litevideo.float_arithmetic.floatmult import FloatMult
+from litevideo.float_arithmetic.test.common import *
 
-from gateware.float_arithmetic.test.common import *
 
 
 class TB(Module):
     def __init__(self):
         self.submodules.streamer = PacketStreamer(EndpointDescription([("data", 32)]))
         self.submodules.floatmult = FloatMult()
-        self.submodules.logger = PacketLogger(EndpointDescription([("data", 16)], packetized=True))
+        self.submodules.logger = PacketLogger(EndpointDescription([("data", 16)]))
 
         self.comb += [
-        	self.streamer.source.connect(self.floatmult.sink, omit=["data"]),
+            self.streamer.source.connect(self.floatmult.sink, omit=["data"]),
             self.floatmult.sink.payload.a.eq(self.streamer.source.data[16:32]),
             self.floatmult.sink.payload.b.eq(self.streamer.source.data[0:16]),
 
@@ -24,18 +24,18 @@ class TB(Module):
         ]
 
 
-    def main_generator(dut):
+def main_generator(dut):
 
-        for i in range(16):
-            yield
+    for i in range(16):
+        yield
 
-        raw_image = RAWImage(None, None, 64)
-        raw_image.pack_mult_in()
-        packet = Packet(raw_image.data)
-        dut.streamer.send(packet)
-        yield from dut.logger.receive()
-        raw_image.set_data(dut.logger.packet)
-        raw_image.unpack_mult_in()
+    raw_image = RAWImage(None, None, 64)
+    raw_image.pack_mult_in()
+    packet = Packet(raw_image.data)
+    dut.streamer.send(packet)
+    yield from dut.logger.receive()
+    raw_image.set_data(dut.logger.packet)
+    raw_image.unpack_mult_in()
 
 if __name__ == "__main__":
     tb = TB()
