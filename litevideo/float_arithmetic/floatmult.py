@@ -1,16 +1,17 @@
-# rgb2ycbcr
+# floatmult
 
-from migen.fhdl.std import *
-from migen.genlib.record import *
-from migen.bank.description import *
-from migen.flow.actor import *
+from litex.gen import *
+from litex.soc.interconnect.stream import *
 
-from gateware.float_arithmetic.common import *
+from litevideo.float_arithmetic.common import *
 
-datapath_latency = 5
-
-@DecorateModule(InsertCE)
+@CEInserter()
 class FloatMultDatapath(Module):
+    """
+    FIXME: Add description here
+    """
+    latency = 5
+
     def __init__(self,dw):
         self.sink = sink = Record(in_layout(dw))
         self.source = source = Record(out_layout(dw))
@@ -227,8 +228,8 @@ class FloatMultDatapath(Module):
 
 class FloatMult(PipelinedActor, Module, AutoCSR):
     def __init__(self, dw=16):
-        self.sink = sink = Sink(EndpointDescription(in_layout(dw), packetized=True))
-        self.source = source = Source(EndpointDescription(out_layout(dw), packetized=True))
+        self.sink = sink = stream.Endpoint(EndpointDescription(in_layout(dw)))
+        self.source = source = stream.Endpoint(EndpointDescription(out_layout(dw)))
         PipelinedActor.__init__(self, datapath_latency)
         self.latency = datapath_latency
 
@@ -245,6 +246,7 @@ class FloatMult(PipelinedActor, Module, AutoCSR):
         ]
 
         self.submodules.datapath = FloatMultDatapath(dw)
+        PipelinedActor.__init__(self, self.datapath.latency)
         self.comb += self.datapath.ce.eq(self.pipe_ce)
         for name in ["a", "b"]:
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))

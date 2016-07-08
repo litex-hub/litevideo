@@ -1,43 +1,49 @@
-from migen.fhdl.std import *
-from migen.sim.generic import run_simulation
-from migen.flow.actor import EndpointDescription
+from litex.gen import *
+from litex.soc.interconnect.stream import *
+from litex.soc.interconnect.stream_sim import *
 
-from gateware.float_arithmetic.common import *
-from gateware.float_arithmetic.floatmult import FloatMult
+from litevideo.float_arithmetic.common import *
+from litevideo.float_arithmetic.floatmult import FloatMult
 
 from gateware.float_arithmetic.test.common import *
 
 
 class TB(Module):
     def __init__(self):
-        self.submodules.streamer = PacketStreamer(EndpointDescription([("data", 32)], packetized=True))
+        self.submodules.streamer = PacketStreamer(EndpointDescription([("data", 32)]))
         self.submodules.floatmult = FloatMult()
         self.submodules.logger = PacketLogger(EndpointDescription([("data", 16)], packetized=True))
 
         self.comb += [
-        	Record.connect(self.streamer.source, self.floatmult.sink, leave_out=["data"]),
+        	self.streamer.source.connect(self.floatmult.sink, omit=["data"]),
             self.floatmult.sink.payload.a.eq(self.streamer.source.data[16:32]),
             self.floatmult.sink.payload.b.eq(self.streamer.source.data[0:16]),
 
-            Record.connect(self.floatmult.source, self.logger.sink, leave_out=["c"]),
+            self.floatmult.source.connect(self.logger.sink, omit=["c"]),
             self.logger.sink.data[0:16].eq(self.floatmult.source.c)
         ]
 
 
-    def gen_simulation(self, selfp):
+    def main_generator(dut):
 
         for i in range(16):
             yield
 
-        # convert image using rgb2ycbcr implementation
         raw_image = RAWImage(None, None, 64)
         raw_image.pack_mult_in()
         packet = Packet(raw_image.data)
-        self.streamer.send(packet)
-        yield from self.logger.receive()
-        raw_image.set_data(self.logger.packet)
+        dut.streamer.send(packet)
+        yield from dut.logger.receive()
+        raw_image.set_data(dut.logger.packet)
         raw_image.unpack_mult_in()
-#        raw_image.save("lena_rgb2ycbcr.png")
 
 if __name__ == "__main__":
-    run_simulation(TB(), ncycles=8192, vcd_name="my.vcd", keep_files=True)
+    tb = TB()
+    generators = {"sys" : [main_generator(tb)]}
+    generators = {
+        "sys" :   [main_generator(tb),
+                   tb.streamer.generator(),
+                   tb.logger.generator()]
+    }
+    clocks = {"sys": 10}
+    run_simulation(tb, generators, clocks, vcd_name="sim.vcd")
