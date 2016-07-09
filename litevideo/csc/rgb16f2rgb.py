@@ -5,7 +5,7 @@ from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
 
-@CEInserter
+@CEInserter()
 class PIXF2PIXDatapath(Module):
     """ 
     Converts a 16 bit half precision floating point 
@@ -51,28 +51,15 @@ class PIXF2PIXDatapath(Module):
             source.pix.eq( (frac >> exp_offset)[3:]),
         ]
 
-
 class RGB16f2RGB(PipelinedActor, Module):
-    def __init__(self, rgb16f_w=16, rgb_w=8):
+    def __init__(self, rgb_w=8, rgb16f_w=16):
         self.sink = sink = stream.Endpoint(EndpointDescription(rgb16f_layout(rgb16f_w)))
         self.source = source = stream.Endpoint(EndpointDescription(rgb_layout(rgb_w)))
-
         # # #
 
-        self.submodules.datapathr = PIXF2PIXDatapath(rgb16f_w, rgb_w)
-        self.submodules.datapathg = PIXF2PIXDatapath(rgb16f_w, rgb_w)
-        self.submodules.datapathb = PIXF2PIXDatapath(rgb16f_w, rgb_w)
-
-        PipelinedActor.__init__(self, self.datapathr.latency)
-
-        self.comb += self.datapathr.ce.eq(self.pipe_ce)
-        self.comb += self.datapathg.ce.eq(self.pipe_ce)
-        self.comb += self.datapathb.ce.eq(self.pipe_ce)
-
-        self.comb += getattr(self.datapathr.sink, "pixf").eq(getattr(sink, "r_f"))
-        self.comb += getattr(self.datapathg.sink, "pixf").eq(getattr(sink, "g_f"))
-        self.comb += getattr(self.datapathb.sink, "pixf").eq(getattr(sink, "b_f"))
-
-        self.comb += getattr(source, "r").eq(getattr(self.datapathr.source, "pix"))
-        self.comb += getattr(source, "g").eq(getattr(self.datapathg.source, "pix"))
-        self.comb += getattr(source, "b").eq(getattr(self.datapathb.source, "pix"))
+        for name in ["r", "g", "b"]:
+            self.submodules.datapath = PIXF2PIXDatapath(rgb16f_w, rgb_w)
+            PipelinedActor.__init__(self, self.datapath.latency)
+            self.comb += self.datapath.ce.eq(self.pipe_ce)
+            self.comb += getattr(self.datapath.sink, "pixf").eq(getattr(sink, name +"f"))
+            self.comb += getattr(source, name).eq(getattr(self.datapath.source, "pix"))
