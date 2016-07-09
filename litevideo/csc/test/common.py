@@ -80,9 +80,9 @@ class RAWImage:
     def pack_rgb16f(self):
         self.data = []
         for i in range(self.length):
-            data  = (self.r_f[i] & 0xffff) << 32
-            data |= (self.g_f[i] & 0xffff) << 16
-            data |= (self.b_f[i] & 0xffff) << 0
+            data  = (self.rf[i] & 0xffff) << 32
+            data |= (self.gf[i] & 0xffff) << 16
+            data |= (self.bf[i] & 0xffff) << 0
             self.data.append(data)
         return self.data
 
@@ -109,14 +109,14 @@ class RAWImage:
         return self.y, self.cb, self.cr
 
     def unpack_rgb16f(self):
-        self.r_f = []
-        self.g_f = []
-        self.b_f = []
+        self.rf = []
+        self.gf = []
+        self.bf = []
         for data in self.data:
-            self.r_f.append((data >> 32) & 0xffff)
-            self.g_f.append((data >> 16) & 0xffff)
-            self.b_f.append((data >> 0 ) & 0xffff)
-        return self.r_f, self.g_f, self.b_f
+            self.rf.append((data >> 32) & 0xffff)
+            self.gf.append((data >> 16) & 0xffff)
+            self.bf.append((data >> 0 ) & 0xffff)
+        return self.rf, self.gf, self.bf
 
     # Model for our implementation
     def rgb2ycbcr_model(self):
@@ -171,22 +171,22 @@ class RAWImage:
         self.r = []
         self.g = []
         self.b = []
-        for r_f, g_f, b_f in zip(self.r_f, self.g_f, self.b_f):
-            self.r.append(float2int(r_f))
-            self.g.append(float2int(g_f))
-            self.b.append(float2int(b_f))
+        for rf, gf, bf in zip(self.rf, self.gf, self.bf):
+            self.r.append(float2int(rf))
+            self.g.append(float2int(gf))
+            self.b.append(float2int(bf))
         return self.r, self.g, self.b
 
     # Convert 8 bit pixel to 16 bit float
     def rgb2rgb16f_model(self):
-        self.r_f = []
-        self.g_f = []
-        self.b_f = []
+        self.rf = []
+        self.gf = []
+        self.bf = []
         for r, g, b in zip(self.r, self.g, self.b):
-            self.r_f.append(int2float(r))
-            self.g_f.append(int2float(g))
-            self.b_f.append(int2float(b))
-        return self.r_f, self.g_f, self.b_f
+            self.rf.append(int2float(r))
+            self.gf.append(int2float(g))
+            self.bf.append(int2float(b))
+        return self.rf, self.gf, self.bf
 
 def int2float(x):
     ''' 

@@ -54,7 +54,7 @@ class PIX2PIXFDatapath(Module):
             ).Elif(sink.pix[0] == 1,
                 lshift.eq(7)
             ).Else(
-                lshift.eq(14)   #Zero
+                lshift.eq(14-14)   #Zero
             ),
 
             frac_val[3:].eq(sink.pix[:7]),
@@ -77,17 +77,9 @@ class RGB2RGB16f(PipelinedActor, Module):
         self.source = source = stream.Endpoint(EndpointDescription(rgb16f_layout(rgb16f_w)))
         # # #
 
-        self.submodules.datapathr = PIX2PIXFDatapath(rgb_w, rgb16f_w)
-        self.submodules.datapathg = PIX2PIXFDatapath(rgb_w, rgb16f_w)
-        self.submodules.datapathb = PIX2PIXFDatapath(rgb_w, rgb16f_w)
-        PipelinedActor.__init__(self, self.datapathr.latency)
-        self.comb += self.datapathr.ce.eq(self.pipe_ce)
-        self.comb += self.datapathg.ce.eq(self.pipe_ce)
-        self.comb += self.datapathb.ce.eq(self.pipe_ce)
-
-        self.comb += getattr(self.datapathr.sink, "pix").eq(getattr(sink, "r"))
-        self.comb += getattr(self.datapathg.sink, "pix").eq(getattr(sink, "g"))
-        self.comb += getattr(self.datapathb.sink, "pix").eq(getattr(sink, "b"))
-        self.comb += getattr(source, "r_f").eq(getattr(self.datapathr.source, "pixf"))
-        self.comb += getattr(source, "g_f").eq(getattr(self.datapathg.source, "pixf"))
-        self.comb += getattr(source, "b_f").eq(getattr(self.datapathb.source, "pixf"))
+        for name in ["r", "g", "b"]:
+            self.submodules.datapath = PIX2PIXFDatapath(rgb_w, rgb16f_w)
+            PipelinedActor.__init__(self, self.datapath.latency)
+            self.comb += self.datapath.ce.eq(self.pipe_ce)
+            self.comb += getattr(self.datapath.sink, "pix").eq(getattr(sink, name))
+            self.comb += getattr(source, name + "f").eq(getattr(self.datapath.source, "pixf"))
