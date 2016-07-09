@@ -5,6 +5,15 @@ from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
 
+
+class LeadOne(Module):
+    def __init__(self):
+
+        self.datai = Signal(8)
+        self.leadone = Signal(4)
+        for j in range(8):
+            self.comb += If(self.datai[j], self.leadone.eq(8 - j-1))
+
 @CEInserter()
 class PIX2PIXFDatapath(Module):
     """ 
@@ -35,28 +44,14 @@ class PIX2PIXFDatapath(Module):
         lshift = Signal(4)
         frac_val = Signal(10)
 
-        self.sync += [
-            # Leading one detector
-            If( sink.pix[7]==1,
-                lshift.eq(0)
-            ).Elif(sink.pix[6] == 1,
-                lshift.eq(1)
-            ).Elif(sink.pix[5] == 1,
-                lshift.eq(2)
-            ).Elif(sink.pix[4] == 1,
-                lshift.eq(3)
-            ).Elif(sink.pix[3] == 1,
-                lshift.eq(4)
-            ).Elif(sink.pix[2] == 1,
-                lshift.eq(5)
-            ).Elif(sink.pix[1] == 1,
-                lshift.eq(6)
-            ).Elif(sink.pix[0] == 1,
-                lshift.eq(7)
-            ).Else(
-                lshift.eq(14-14)   #Zero
-            ),
+        self.submodules.l1 = LeadOne()
+        self.comb += [
+            self.l1.datai.eq(sink.pix)
+        ]
 
+        self.sync += [
+
+            lshift.eq(self.l1.leadone),
             frac_val[3:].eq(sink.pix[:7]),
             frac_val[:3].eq(0)
         ]
