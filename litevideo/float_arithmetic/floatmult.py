@@ -2,8 +2,7 @@
 
 from litex.gen import *
 from litex.soc.interconnect.stream import *
-from litex.soc.interconnect.csr import *
-from migen.bank.description import *
+#from litex.soc.interconnect.csr import *
 
 from litevideo.float_arithmetic.common import *
 
@@ -26,11 +25,6 @@ class FloatMultDatapath(Module):
                 self.sync += getattr(in_n, name).eq(getattr(in_delayed[-1], name))
             in_delayed.append(in_n)
 
-        # Hardware implementation:
-        # (Equation from XAPP930)
-        #    y = ca*(r-g) + g + cb*(b-g) + yoffset
-        #   cb = cc*(r-y) + coffset
-        #   cr = cd*(b-y) + coffset
 
         # stage 1
         # Unpack
@@ -70,7 +64,6 @@ class FloatMultDatapath(Module):
 
             a_sign.eq( sink.a[15] ),
             b_sign.eq( sink.a[15] ),
-
         ]
 
         self.sync += [
@@ -94,7 +87,6 @@ class FloatMultDatapath(Module):
                 b_exp1.eq(b_exp)
             ),  
 
-
             c_status1.eq(3),
 
         ]
@@ -105,7 +97,7 @@ class FloatMultDatapath(Module):
         c_mult = Signal(22)
         c_exp = Signal((7,True))
         c_status2 = Signal(2)        
-        var2 = Signal(22)
+
         a_stage2 = Signal(16)
         b_stage2 = Signal(16)
 
@@ -126,7 +118,7 @@ class FloatMultDatapath(Module):
         c_status3 = Signal(2)
         c_mult3 = Signal(22)
         c_exp3 = Signal((7,True))
-        var3 = Signal(22)
+
         a_stage3 = Signal(16)
         b_stage3 = Signal(16)
 
@@ -136,7 +128,6 @@ class FloatMultDatapath(Module):
             c_status3.eq(c_status2),
             c_mult3.eq(c_mult),
             c_exp3.eq(c_exp),
-            var3.eq(c_mult[6:]),
 
             If( c_mult[21]==1,
                 one_ptr.eq(0)
@@ -189,7 +180,7 @@ class FloatMultDatapath(Module):
         c_exp_adjust = Signal((7,True))
         c_mult_shift = Signal(22)
         c_status4 = Signal(2)
-        var4 = Signal(3)        
+
         a_stage4 = Signal(16)
         b_stage4 = Signal(16)
 
@@ -209,41 +200,33 @@ class FloatMultDatapath(Module):
                 c_mult_shift.eq(c_mult << one_ptr+1 )
 
             ),
-            # if c_exp3+1-one_ptr > 1 do standard
-            # else c_mult = c_mult<<1
-            #c_exp_adjust.eq(c_exp3 + 1 - (one_ptr) ),
-            #c_mult_shift.eq(c_mult << one_ptr+1),
-            var4.eq(0)
-
         ]
 
         # stage 5
         # Normalize and pack
         self.sync += [
-        #    If(c_status4 == 3,
-        #        source.c.eq( Cat(c_mult_shift[12:], c_exp_adjust[:5],0) )
-        #    ),
+
             source.c.eq(a_stage4+b_stage4)
 
         ]
 
 
-class FloatMult(PipelinedActor, Module, AutoCSR):
+class FloatMult(PipelinedActor, Module):
     def __init__(self, dw=16):
         self.sink = sink = stream.Endpoint(EndpointDescription(in_layout(dw)))
         self.source = source = stream.Endpoint(EndpointDescription(out_layout(dw)))
         
         # # #
 
-        self._float_in1 = CSRStorage(dw)
-        self._float_in2 = CSRStorage(dw)
-        self._float_out = CSRStatus(dw)
+#        self._float_in1 = CSRStorage(dw)
+#        self._float_in2 = CSRStorage(dw)
+#        self._float_out = CSRStatus(dw)
 
-        self.comb += [
-            self._float_in1.storage.eq(getattr(sink, "a")),
-            self._float_in2.storage.eq(getattr(sink, "b")),
-            self._float_out.status.eq(getattr(source, "c"))
-        ]
+#        self.comb += [
+#            self._float_in1.storage.eq(getattr(sink, "a")),
+#            self._float_in2.storage.eq(getattr(sink, "b")),
+#            self._float_out.status.eq(getattr(source, "c"))
+#        ]
 
         self.submodules.datapath = FloatMultDatapath(dw)
         PipelinedActor.__init__(self, self.datapath.latency)

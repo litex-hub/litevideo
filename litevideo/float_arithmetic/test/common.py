@@ -9,7 +9,7 @@ from litex.gen import *
 from litex.soc.interconnect.stream import *
 
 class RAWImage:
-    def __init__(self, coefs, filename=None, size=None):
+    def __init__(self):
         self.a = None
         self.b = None
         self.c = None
@@ -23,8 +23,8 @@ class RAWImage:
 
     def open(self):
 
-        v1 = 0.01
-        v2 = 0.23435
+        v1 = 1
+        v2 = 2
         print ("Mult out" , v1*v2)
         print( "Mult bin", bin(float2binint(v1*v2))[2:].zfill(16) )
         a, b = ([float2binint(v1)]*4,[float2binint(v2)]*4)
