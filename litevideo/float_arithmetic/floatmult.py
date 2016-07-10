@@ -9,8 +9,10 @@ from litevideo.float_arithmetic.common import *
 @CEInserter()
 class FloatMultDatapath(Module):
     """
-    FIXME: Add description here
-    """
+	This adds a floating point multiplication unit.
+	Implemented as a 5 stage pipeline, design is based on float16 design doc. 
+	Google Docs Link: https://goo.gl/Rvx2B7    
+	"""
     latency = 5
 
     def __init__(self,dw):
@@ -234,3 +236,4 @@ class FloatMult(PipelinedActor, Module):
         for name in ["a", "b"]:
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
         self.comb += getattr(source, "c").eq(getattr(self.datapath.source, "c"))
+
