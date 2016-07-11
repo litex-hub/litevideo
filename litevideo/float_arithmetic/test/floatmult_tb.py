@@ -14,11 +14,11 @@ class TB(Module):
 
         self.comb += [
             self.streamer.source.connect(self.floatmult.sink, omit=["data"]),
-            self.floatmult.sink.payload.a.eq(self.streamer.source.data[16:32]),
-            self.floatmult.sink.payload.b.eq(self.streamer.source.data[0:16]),
+            self.floatmult.sink.payload.in1.eq(self.streamer.source.data[16:32]),
+            self.floatmult.sink.payload.in2.eq(self.streamer.source.data[0:16]),
 
-            self.floatmult.source.connect(self.logger.sink, omit=["c"]),
-            self.logger.sink.data[0:16].eq(self.floatmult.source.c)
+            self.floatmult.source.connect(self.logger.sink, omit=["out"]),
+            self.logger.sink.data[0:16].eq(self.floatmult.source.out)
         ]
 
 def main_generator(dut):
@@ -44,4 +44,4 @@ if __name__ == "__main__":
                    tb.logger.generator()]
     }
     clocks = {"sys": 10}
-    run_simulation(tb, generators, clocks, vcd_name="sim2.vcd")
+    run_simulation(tb, generators, clocks, vcd_name="sim.vcd")

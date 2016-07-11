@@ -1,15 +1,34 @@
-# floatmult
+'''
+FloatMultDatapath class: Multiply two floating point numbers a and b, returns 
+their output c in the same float16 format.
+
+FloatMult class: Use the FloatMultDatapath above and generates a modules 
+implemented using five stage pipeline.
+'''
 
 from litex.gen import *
 from litex.soc.interconnect.stream import *
 #from litex.soc.interconnect.csr import *
-
 from litevideo.float_arithmetic.common import *
+
+class LeadOne(Module):
+    """
+	This return the position of leading one of the Signal Object datai, as the 
+	leadone Signal object. Function input dw defines the data width of datai 
+	Signal object.
+	"""
+    def __init__(self,dw):
+        self.datai = Signal(dw)
+        self.leadone = Signal(max=dw)
+        for j in range(dw):
+            self.comb += If(self.datai[j], self.leadone.eq(dw - j-1))
 
 @CEInserter()
 class FloatMultDatapath(Module):
     """
 	This adds a floating point multiplication unit.
+	Inputs: in1 and in2
+	Output: out
 	Implemented as a 5 stage pipeline, design is based on float16 design doc. 
 	Google Docs Link: https://goo.gl/Rvx2B7    
 	"""
@@ -19,199 +38,124 @@ class FloatMultDatapath(Module):
         self.sink = sink = Record(in_layout(dw))
         self.source = source = Record(out_layout(dw))
 
-        # delay rgb signals
+        # delay input a/b signals
         in_delayed = [sink]
         for i in range(self.latency):
             in_n = Record(in_layout(dw))
-            for name in ["a", "b"]:
+            for name in ["in1", "in2"]:
                 self.sync += getattr(in_n, name).eq(getattr(in_delayed[-1], name))
             in_delayed.append(in_n)
-
 
         # stage 1
         # Unpack
         # Look for special cases
 
-        a_frac = Signal(10)
-        b_frac = Signal(10)
-        
-        a_mant = Signal(11)
-        b_mant = Signal(11)
+        in1_frac = Signal(10)
+        in2_frac = Signal(10)
+        in1_mant = Signal(11)
+        in2_mant = Signal(11)
 
-        a_exp = Signal(5)
-        b_exp = Signal(5)
+        in1_exp = Signal(5)
+        in2_exp = Signal(5)
+        in1_exp1 = Signal(5)
+        in2_exp1 = Signal(5)
 
-        a_exp1 = Signal(5)
-        b_exp1 = Signal(5)
+        in1_sign = Signal()
+        in2_sign = Signal()
 
-        a_sign = Signal()
-        b_sign = Signal()
-
-
-        c_status1 = Signal(2)
+        out_status1 = Signal(2)
         # 00-0 Zero
         # 01-1 Inf
         # 10-2 Nan
         # 11-3 Normal 
         
-        a_stage1 = Signal(16)
-        b_stage1 = Signal(16)
-
         self.comb += [
-            a_frac.eq( Cat(sink.a[:10], 1) ),
-            b_frac.eq( Cat(sink.b[:10], 1) ),
+            in1_frac.eq( Cat(sink.in1[:10], 1) ),
+            in2_frac.eq( Cat(sink.in2[:10], 1) ),
 
-            a_exp.eq( sink.a[10:15] ),
-            b_exp.eq( sink.b[10:15] ),
+            in1_exp.eq( sink.in1[10:15] ),
+            in2_exp.eq( sink.in1[10:15] ),
 
-            a_sign.eq( sink.a[15] ),
-            b_sign.eq( sink.a[15] ),
+            in1_sign.eq( sink.in1[15] ),
+            in2_sign.eq( sink.in1[15] ),
         ]
 
         self.sync += [
-
-            a_stage1.eq(sink.a),
-            b_stage1.eq(15362),
-
-            If( a_exp==0,
-                a_mant.eq( Cat(a_frac, 0)),     
-                a_exp1.eq(a_exp + 1 )       
+            If(in1_exp==0,
+                in1_mant.eq( Cat(in1_frac, 0)),     
+                in1_exp1.eq(in1_exp + 1 )       
             ).Else(
-                a_mant.eq( Cat(a_frac, 1)),
-                a_exp1.eq(a_exp)
+                in1_mant.eq( Cat(in1_frac, 1)),
+                in1_exp1.eq(in1_exp)
             ),
 
-            If( b_exp==0,
-                b_mant.eq( Cat(b_frac, 0)),     
-                b_exp1.eq(b_exp + 1 )       
+            If(in2_exp==0,
+                in2_mant.eq( Cat(in2_frac, 0)),     
+                in2_exp1.eq(in2_exp + 1 )       
             ).Else(
-                b_mant.eq( Cat(b_frac, 1)),
-                b_exp1.eq(b_exp)
+                in2_mant.eq( Cat(in2_frac, 1)),
+                in2_exp1.eq(in2_exp)
             ),  
-
-            c_status1.eq(3),
-
+            out_status1.eq(3),
         ]
 
         # stage 2
         # Multiply fractions and add exponents
-
-        c_mult = Signal(22)
-        c_exp = Signal((7,True))
-        c_status2 = Signal(2)        
-
-        a_stage2 = Signal(16)
-        b_stage2 = Signal(16)
+        out_mult = Signal(22)
+        out_exp = Signal((7,True))
+        out_status2 = Signal(2)        
 
         self.sync += [
-            a_stage2.eq(a_stage1),
-            b_stage2.eq(b_stage1),
-
-            c_mult.eq(a_mant * b_mant),
-            c_exp.eq(a_exp1 + b_exp1 - 15),
-            c_status2.eq(c_status1),
-#            var2.eq(a_exp1)
-
+            out_mult.eq(in1_mant * in2_mant),
+            out_exp.eq(in1_exp1 + in2_exp1 - 15),
+            out_status2.eq(out_status1),
         ]
 
         # stage 3
         # Leading one detector
-        one_ptr = Signal(5) 
-        c_status3 = Signal(2)
-        c_mult3 = Signal(22)
-        c_exp3 = Signal((7,True))
+        one_ptr = Signal(5)
+        out_status3 = Signal(2)
+        out_mult3 = Signal(22)
+        out_exp3 = Signal((7,True))
 
-        a_stage3 = Signal(16)
-        b_stage3 = Signal(16)
+        lead_one_ptr = Signal(5)
+        self.submodules.leadone = LeadOne(22)
+        self.comb += [
+            self.leadone.datai.eq(out_mult),
+            lead_one_ptr.eq(self.leadone.leadone)
+        ]
 
         self.sync += [
-            a_stage3.eq(a_stage2),
-            b_stage3.eq(b_stage2),
-            c_status3.eq(c_status2),
-            c_mult3.eq(c_mult),
-            c_exp3.eq(c_exp),
-
-            If( c_mult[21]==1,
-                one_ptr.eq(0)
-            ).Elif(c_mult[20] == 1,
-                one_ptr.eq(1)
-            ).Elif(c_mult[19] == 1,
-                one_ptr.eq(2)
-            ).Elif(c_mult[18] == 1,
-                one_ptr.eq(3)
-            ).Elif(c_mult[17] == 1,
-                one_ptr.eq(4)
-            ).Elif(c_mult[16] == 1,
-                one_ptr.eq(5)
-            ).Elif(c_mult[15] == 1,
-                one_ptr.eq(6)
-            ).Elif(c_mult[14] == 1,
-                one_ptr.eq(7)
-            ).Elif(c_mult[13] == 1,
-                one_ptr.eq(8)
-            ).Elif(c_mult[12] == 1,
-                one_ptr.eq(9)
-            ).Elif(c_mult[11] == 1,
-                one_ptr.eq(10)
-            ).Elif(c_mult[10] == 1,
-                one_ptr.eq(11)
-            ).Elif(c_mult[ 9] == 1,
-                one_ptr.eq(12)
-            ).Elif(c_mult[ 8] == 1,
-                one_ptr.eq(13)
-            ).Elif(c_mult[ 7] == 1,
-                one_ptr.eq(14)
-            ).Elif(c_mult[ 6] == 1,
-                one_ptr.eq(15)
-            ).Elif(c_mult[ 5] == 1,
-                one_ptr.eq(16)
-            ).Elif(c_mult[ 4] == 1,
-                one_ptr.eq(17)
-            ).Elif(c_mult[ 3] == 1,
-                one_ptr.eq(18)
-            ).Elif(c_mult[ 2] == 1,
-                one_ptr.eq(19)
-            ).Elif(c_mult[ 1] == 1,
-                one_ptr.eq(20)
-            )
-
+            out_status3.eq(out_status2),
+            out_mult3.eq(out_mult),
+            out_exp3.eq(out_exp),
+            one_ptr.eq(lead_one_ptr)
         ]
 
         # stage 4
         # Shift and Adjust
-        c_exp_adjust = Signal((7,True))
-        c_mult_shift = Signal(22)
-        c_status4 = Signal(2)
-
-        a_stage4 = Signal(16)
-        b_stage4 = Signal(16)
+        out_exp_adjust = Signal((7,True))
+        out_mult_shift = Signal(22)
+        out_status4 = Signal(2)
 
         self.sync += [
-            a_stage4.eq(a_stage3),
-            b_stage4.eq(64),
-
-            c_status4.eq(c_status3),
-
-            If( (c_exp3 - one_ptr) < 1,
-
-                c_exp_adjust.eq(0),
-                c_mult_shift.eq( ( (c_mult >> (0-c_exp3)) << 1) )
-
+            out_status4.eq(out_status3),
+            If((out_exp3 - one_ptr) < 1,
+                out_exp_adjust.eq(0),
+                out_mult_shift.eq(((out_mult >> (0-out_exp3)) << 1))
             ).Else(
-                c_exp_adjust.eq(c_exp3 +1 - one_ptr),
-                c_mult_shift.eq(c_mult << one_ptr+1 )
-
+                out_exp_adjust.eq(out_exp3 +1 - one_ptr),
+                out_mult_shift.eq(out_mult << one_ptr+1)
             ),
         ]
 
         # stage 5
         # Normalize and pack
         self.sync += [
-
-            source.c.eq(a_stage4+b_stage4)
-
+            If(out_status4 == 3,
+                source.out.eq( Cat(out_mult_shift[12:], out_exp_adjust[:5],0) )
+            ),
         ]
-
 
 class FloatMult(PipelinedActor, Module):
     def __init__(self, dw=16):
@@ -225,15 +169,14 @@ class FloatMult(PipelinedActor, Module):
 #        self._float_out = CSRStatus(dw)
 
 #        self.comb += [
-#            self._float_in1.storage.eq(getattr(sink, "a")),
-#            self._float_in2.storage.eq(getattr(sink, "b")),
-#            self._float_out.status.eq(getattr(source, "c"))
+#            self._float_in1.storage.eq(getattr(sink, "in1")),
+#            self._float_in2.storage.eq(getattr(sink, "in2")),
+#            self._float_out.status.eq(getattr(source, "out"))
 #        ]
 
         self.submodules.datapath = FloatMultDatapath(dw)
         PipelinedActor.__init__(self, self.datapath.latency)
         self.comb += self.datapath.ce.eq(self.pipe_ce)
-        for name in ["a", "b"]:
+        for name in ["in1", "in2"]:
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
-        self.comb += getattr(source, "c").eq(getattr(self.datapath.source, "c"))
-
+        self.comb += getattr(source, "out").eq(getattr(self.datapath.source, "out"))
