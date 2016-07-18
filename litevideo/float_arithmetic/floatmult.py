@@ -8,7 +8,7 @@ implemented using five stage pipeline.
 
 from litex.gen import *
 from litex.soc.interconnect.stream import *
-#from litex.soc.interconnect.csr import *
+from litex.soc.interconnect.csr import *
 from litevideo.float_arithmetic.common import *
 
 class LeadOne(Module):
@@ -157,22 +157,12 @@ class FloatMultDatapath(Module):
             ),
         ]
 
-class FloatMult(PipelinedActor, Module):
+class FloatMult(PipelinedActor, Module, AutoCSR):
     def __init__(self, dw=16):
         self.sink = sink = stream.Endpoint(EndpointDescription(in_layout(dw)))
         self.source = source = stream.Endpoint(EndpointDescription(out_layout(dw)))
         
         # # #
-
-#        self._float_in1 = CSRStorage(dw)
-#        self._float_in2 = CSRStorage(dw)
-#        self._float_out = CSRStatus(dw)
-
-#        self.comb += [
-#            self._float_in1.storage.eq(getattr(sink, "in1")),
-#            self._float_in2.storage.eq(getattr(sink, "in2")),
-#            self._float_out.status.eq(getattr(source, "out"))
-#        ]
 
         self.submodules.datapath = FloatMultDatapath(dw)
         PipelinedActor.__init__(self, self.datapath.latency)
@@ -180,3 +170,13 @@ class FloatMult(PipelinedActor, Module):
         for name in ["in1", "in2"]:
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
         self.comb += getattr(source, "out").eq(getattr(self.datapath.source, "out"))
+
+        self._float_in1 = CSRStorage(dw)
+        self._float_in2 = CSRStorage(dw)
+        self._float_out = CSRStatus(dw)
+
+        self.comb += [
+            getattr(sink, "in1").eq(self._float_in1.storage),
+            getattr(sink, "in2").eq(self._float_in2.storage),
+            self._float_out.status.eq(getattr(source, "out"))
+        ]

@@ -8,7 +8,7 @@ implemented using five stage pipeline.
 
 from litex.gen import *
 from litex.soc.interconnect.stream import *
-#from litex.soc.interconnect.csr import *
+from litex.soc.interconnect.csr import *
 from litevideo.float_arithmetic.common import *
 
 class LeadOne(Module):
@@ -188,7 +188,7 @@ class FloatAddDatapath(Module):
             source.out.eq( Cat( out_frac_stage4[1:11] , out_exp_stage4 ,out_sign_stage4 ) )
         ]
 
-class FloatAdd(PipelinedActor, Module):
+class FloatAdd(PipelinedActor, Module, AutoCSR):
     def __init__(self, dw=16):
         self.sink = sink = stream.Endpoint(EndpointDescription(in_layout(dw)))
         self.source = source = stream.Endpoint(EndpointDescription(out_layout(dw)))
@@ -201,3 +201,15 @@ class FloatAdd(PipelinedActor, Module):
         for name in ["in1", "in2"]:
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
         self.comb += getattr(source, "out").eq(getattr(self.datapath.source, "out"))
+
+        self._float_in1 = CSRStorage(dw)
+        self._float_in2 = CSRStorage(dw)
+        self._float_out = CSRStatus(dw)
+
+        self.comb += [
+            getattr(sink, "in1").eq(self._float_in1.storage),
+            getattr(sink, "in2").eq(self._float_in2.storage),
+            self._float_out.status.eq(getattr(source, "out"))
+        ]
+
+
