@@ -1,9 +1,9 @@
 '''
-FloatMultDatapath class: Multiply two floating point numbers in1 and in2, returns 
+FloatAddDatapath class: Add two floating point numbers in1 and in2, returns 
 their output out in the same float16 format.
 
-FloatMult class: Use the FloatMultDatapath above and generates a modules 
-implemented using five stage pipeline.
+FloatAdd class: Use the FloatAddDatapath above and generates a pipelined
+module implemented using five stage pipeline.
 '''
 
 from litex.gen import *
@@ -44,7 +44,6 @@ class FloatAddDatapath(Module):
 
         # Stage 1
         # Unpack
-        # Look for special cases
         # Substract Exponents
 
         in1_frac = Signal(10)
@@ -75,8 +74,8 @@ class FloatAddDatapath(Module):
         in2_stage1 = Signal(16)
 
         self.comb += [
-            in1_frac.eq( Cat(sink.in1[:10], 1) ),
-            in2_frac.eq( Cat(sink.in2[:10], 1) ),
+            in1_frac.eq( sink.in1[:10] ),
+            in2_frac.eq( sink.in2[:10] ),
 
             in1_exp.eq( sink.in1[10:15] ),
             in2_exp.eq( sink.in2[10:15] ),
@@ -88,19 +87,19 @@ class FloatAddDatapath(Module):
 
         self.comb += [
             If( in1_exp==0,
-                in1_mant.eq( Cat(in1_frac, 0)),     
-                in1_exp1.eq( in1_exp + 1 )       
+                in1_mant.eq( Cat(sink.in1[:10], 0)),     
+                in1_exp1.eq( sink.in1[10:15] + 1 )       
             ).Else(
-                in1_mant.eq( Cat(in1_frac, 1)),
-                in1_exp1.eq( in1_exp)
+                in1_mant.eq( Cat(sink.in1[:10], 1)),
+                in1_exp1.eq( sink.in1[10:15])
             ),
 
             If( in2_exp==0,
-                in2_mant.eq( Cat(in2_frac, 0)),     
-                in2_exp1.eq(in2_exp + 1 )       
+                in2_mant.eq( Cat(sink.in2[:10], 0)),     
+                in2_exp1.eq( sink.in2[10:15] + 1 )       
             ).Else(
-                in2_mant.eq( Cat(in2_frac, 1)),
-                in2_exp1.eq(in2_exp)
+                in2_mant.eq( Cat(sink.in2[:10], 1)),
+                in2_exp1.eq( sink.in2[10:15])
             )
         ]
 
@@ -116,8 +115,8 @@ class FloatAddDatapath(Module):
             in1_minus_in2_exp.eq(in1_exp1 - in2_exp),
             in1_frac_stage1.eq(in1_mant),   
             in2_frac_stage1.eq(in2_mant),   
-            in1_exp_stage1.eq(in1_exp),   
-            in2_exp_stage1.eq(in2_exp),   
+            in1_exp_stage1.eq(in1_exp1),   
+            in2_exp_stage1.eq(in2_exp1),   
             in1_sign_stage1.eq(in1_sign),
             in2_sign_stage1.eq(in2_sign),
             out_status1.eq(3),
@@ -202,14 +201,16 @@ class FloatAdd(PipelinedActor, Module, AutoCSR):
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
         self.comb += getattr(source, "out").eq(getattr(self.datapath.source, "out"))
 
+        # Comment this out when simulating
+
         self._float_in1 = CSRStorage(dw)
         self._float_in2 = CSRStorage(dw)
         self._float_out = CSRStatus(dw)
 
-        self.comb += [
-            getattr(sink, "in1").eq(self._float_in1.storage),
-            getattr(sink, "in2").eq(self._float_in2.storage),
-            self._float_out.status.eq(getattr(source, "out"))
-        ]
+#        self.comb += [
+#            getattr(sink, "in1").eq(self._float_in1.storage),
+#            getattr(sink, "in2").eq(self._float_in2.storage),
+#            self._float_out.status.eq(getattr(source, "out"))
+#        ]
 
 

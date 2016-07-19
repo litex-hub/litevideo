@@ -70,14 +70,14 @@ class FloatMultDatapath(Module):
         # 11-3 Normal 
         
         self.comb += [
-            in1_frac.eq( Cat(sink.in1[:10], 1) ),
-            in2_frac.eq( Cat(sink.in2[:10], 1) ),
+            in1_frac.eq( sink.in1[:10] ),
+            in2_frac.eq( sink.in2[:10] ),
 
             in1_exp.eq( sink.in1[10:15] ),
-            in2_exp.eq( sink.in1[10:15] ),
+            in2_exp.eq( sink.in2[10:15] ),
 
             in1_sign.eq( sink.in1[15] ),
-            in2_sign.eq( sink.in1[15] ),
+            in2_sign.eq( sink.in2[15] ),
         ]
 
         self.sync += [
@@ -96,7 +96,14 @@ class FloatMultDatapath(Module):
                 in2_mant.eq( Cat(in2_frac, 1)),
                 in2_exp1.eq(in2_exp)
             ),  
-            out_status1.eq(3),
+
+            If(((in1_exp==0) & (in1_frac==0)),
+                out_status1.eq(0)
+            ).Elif(((in2_exp==0) & (in2_frac==0)),
+                out_status1.eq(0)
+            ).Else(
+                out_status1.eq(3)
+            )
         ]
 
         # stage 2
@@ -152,7 +159,10 @@ class FloatMultDatapath(Module):
         # stage 5
         # Normalize and pack
         self.sync += [
-            If(out_status4 == 3,
+
+            If(out_status4 == 0,
+                source.out.eq(0)
+            ).Elif(out_status4 == 3,
                 source.out.eq( Cat(out_mult_shift[12:], out_exp_adjust[:5],0) )
             ),
         ]
@@ -171,12 +181,12 @@ class FloatMult(PipelinedActor, Module, AutoCSR):
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
         self.comb += getattr(source, "out").eq(getattr(self.datapath.source, "out"))
 
-        self._float_in1 = CSRStorage(dw)
-        self._float_in2 = CSRStorage(dw)
-        self._float_out = CSRStatus(dw)
+#        self._float_in1 = CSRStorage(dw)
+#        self._float_in2 = CSRStorage(dw)
+#        self._float_out = CSRStatus(dw)
 
-        self.comb += [
-            getattr(sink, "in1").eq(self._float_in1.storage),
-            getattr(sink, "in2").eq(self._float_in2.storage),
-            self._float_out.status.eq(getattr(source, "out"))
-        ]
+#        self.comb += [
+#            getattr(sink, "in1").eq(self._float_in1.storage),
+#            getattr(sink, "in2").eq(self._float_in2.storage),
+#            self._float_out.status.eq(getattr(source, "out"))
+#        ]

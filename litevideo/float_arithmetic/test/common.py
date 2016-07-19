@@ -18,16 +18,18 @@ class RAWImage:
 
         self.length = None
 
-        self.open()
+        self.set_value()
 
 
-    def open(self):
+    def set_value(self):
 
-        v1 = 1
-        v2 = 2
+        v1 = 0
+        v2 = 0.24142
+        print ("Add out" , v1+v2)
         print ("Mult out" , v1*v2)
+        print( "Add bin", bin(float2binint(v1+v2))[2:].zfill(16) )
         print( "Mult bin", bin(float2binint(v1*v2))[2:].zfill(16) )
-        a, b = ([float2binint(v1)]*4,[float2binint(v2)]*4)
+        a, b = ([float2binint(v1)]*5,[float2binint(v2)]*5)
         self.set_mult_in(a, b)
 
     def set_mult_in(self, a, b):
@@ -59,7 +61,7 @@ class RAWImage:
 
 
 def float2binint(f):
-    x = np.float16(f).view('H')
+    x = int(np.float16(f).view('H'))
     return x
 
 

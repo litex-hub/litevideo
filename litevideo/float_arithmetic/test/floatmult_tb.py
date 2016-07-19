@@ -23,12 +23,15 @@ class TB(Module):
 
 def main_generator(dut):
 
-    for i in range(48):
+    for i in range(4):
         yield
 
     raw_image = RAWImage()
     raw_image.pack_mult_in()
     packet = Packet(raw_image.data)
+#    print (raw_image.data)
+#    print (packet)
+#    print( type(packet[0]))
     dut.streamer.send(packet)
     yield from dut.logger.receive()
     raw_image.set_data(dut.logger.packet)
