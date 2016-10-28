@@ -52,7 +52,7 @@ class DMAReader(Module, AutoCSR):
 
         # # #
 
-        self.submodules.reader = LiteDRAMDMAReader(dram_port, fifo_depth)
+        self.submodules.reader = LiteDRAMDMAReader(dram_port, fifo_depth, True)
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 
         shift = log2_int(dram_port.dw//8)
