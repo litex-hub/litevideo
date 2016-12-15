@@ -58,9 +58,11 @@ class DMAReader(Module, AutoCSR):
         ]
 
         fsm.act("IDLE",
+            NextValue(offset, 0),
             If(sink.valid,
-                NextValue(offset, 0),
                 NextState("READ")
+            ).Else(
+                dram_port.flush.eq(1),
             )
         )
         fsm.act("READ",
@@ -109,7 +111,12 @@ class TimingGenerator(Module):
         ]
 
         self.sync += \
-            If(sink.valid & source.ready,
+            If(~sink.valid,
+                hactive.eq(0),
+                vactive.eq(0),
+                hcounter.eq(0),
+                vcounter.eq(0)
+            ).Elif(source.ready,
                 source.last.eq(0),
                 hcounter.eq(hcounter + 1),
 
