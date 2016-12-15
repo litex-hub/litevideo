@@ -52,42 +52,37 @@ class DMAReader(Module, AutoCSR):
 
         # # #
 
-        self.submodules.reader = LiteDRAMDMAReader(dram_port, fifo_depth, True)
+        self.submodules.dma = LiteDRAMDMAReader(dram_port, fifo_depth, True)
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
 
         shift = log2_int(dram_port.dw//8)
-        base = self.sink.base[shift:shift+dram_port.aw]
-        length = self.sink.length[shift:shift+dram_port.aw]
-
-        address = Signal(dram_port.aw)
-        address_clr = Signal()
-        address_inc = Signal()
-        self.sync += \
-            If(address_clr,
-                address.eq(0)
-            ).Elif(address_inc,
-                address.eq(address + 1)
-            )
+        base = Signal(dram_port.aw)
+        length = Signal(dram_port.aw)
+        offset = Signal(dram_port.aw)
+        self.comb += [
+            base.eq(sink.base[shift:]),
+            length.eq(sink.length[shift:])
+        ]
 
         fsm.act("IDLE",
-            address_clr.eq(1),
             If(sink.valid,
+                NextValue(offset, 0),
                 NextState("READ")
             )
         )
         fsm.act("READ",
-            self.reader.sink.valid.eq(1),
-            If(self.reader.sink.ready,
-                address_inc.eq(1),
-                If(address == (length - 1),
+            self.dma.sink.valid.eq(1),
+            If(self.dma.sink.ready,
+                NextValue(offset, offset + 1),
+                If(offset == (length - 1),
                     self.sink.ready.eq(1),
                     NextState("IDLE")
                 )
             )
         )
         self.comb += [
-            self.reader.sink.address.eq(base + address),
-            self.reader.source.connect(self.source)
+            self.dma.sink.address.eq(base + offset),
+            self.dma.source.connect(self.source)
         ]
 
 
@@ -183,13 +178,13 @@ class VideoOutCore(Module, AutoCSR):
 
             # combine timing and dma
             source.valid.eq(timing.source.valid & (~timing.source.de | dma.source.valid)),
-            If(source.valid & source.ready,
-                timing.source.ready.eq(1),
-                dma.source.ready.eq(timing.source.de)
             # flush dma/timing when disabled
-            ).Elif(~initiator.source.valid,
+            If(~initiator.source.valid,
                 timing.source.ready.eq(1),
                 dma.source.ready.eq(1)
+            ).Elif(source.valid & source.ready,
+                timing.source.ready.eq(1),
+                dma.source.ready.eq(timing.source.de)
             )
         ]
 
