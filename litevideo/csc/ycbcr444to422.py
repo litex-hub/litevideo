@@ -78,7 +78,7 @@ class YCbCr444to422(PipelinedActor, Module):
 
         self.submodules.datapath = YCbCr444to422Datapath(dw)
         PipelinedActor.__init__(self, self.datapath.latency)
-        self.comb += self.datapath.ce.eq(source.ready)
+        self.comb += self.datapath.ce.eq(source.valid & source.ready)
         for name in ["y", "cb", "cr"]:
             self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
         for name in ["y", "cb_cr"]:
