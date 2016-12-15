@@ -30,14 +30,7 @@ class Initiator(Module, AutoCSR):
         for name, width in frame_parameter_layout + frame_dma_layout:
             setattr(self, name, CSRStorage(width, name=name))
             self.comb += getattr(cdc.sink, name).eq(getattr(self, name).storage)
-        self.sync += [
-            If(self.enable.storage,
-                cdc.sink.valid.eq(1)
-            ).Elif(self.source.ready,
-                cdc.sink.valid.eq(0)
-            )
-        ]
-
+        self.comb += cdc.sink.valid.eq(self.enable.storage)
         self.comb += cdc.source.connect(self.source)
 
 
