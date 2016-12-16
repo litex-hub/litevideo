@@ -21,7 +21,7 @@ class Initiator(Module, AutoCSR):
 
         # # #
 
-        cdc = stream.AsyncFIFO(self.source.description, 4)
+        cdc = stream.AsyncFIFO(self.source.description, 2)
         cdc = ClockDomainsRenamer({"write": "sys",
                                    "read": cd})(cdc)
         self.submodules += cdc
