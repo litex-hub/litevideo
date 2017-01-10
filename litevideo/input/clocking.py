@@ -25,7 +25,7 @@ class Clocking(Module, AutoCSR):
         # # #
 
         clk_se = Signal()
-        self.specials += Instance("IBUFDS",
+        self.specials += Instance("IBUFDS", name="hdmi_in_ibufds",
                                   i_I=pads.clk_p, i_IB=pads.clk_n,
                                   o_O=clk_se)
 
@@ -41,6 +41,7 @@ class Clocking(Module, AutoCSR):
             self._pll_drdy.status.eq(1)
         )
         self.specials += Instance("PLL_ADV",
+                                  name="hdmi_in_pll_adv",
                                   p_CLKFBOUT_MULT=10,
                                   p_CLKOUT0_DIVIDE=1,   # pix10x
                                   p_CLKOUT1_DIVIDE=5,   # pix2x
@@ -63,11 +64,11 @@ class Clocking(Module, AutoCSR):
 
         locked_async = Signal()
         self.specials += [
-            Instance("BUFPLL", p_DIVIDE=5,
+            Instance("BUFPLL", name="hdmi_in_bufpll", p_DIVIDE=5,
                      i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix2x"), i_LOCKED=pll_locked,
                      o_IOCLK=self._cd_pix10x.clk, o_LOCK=locked_async, o_SERDESSTROBE=self.serdesstrobe),
-            Instance("BUFG", i_I=pll_clk1, o_O=self._cd_pix2x.clk),
-            Instance("BUFG", i_I=pll_clk2, o_O=self._cd_pix.clk),
+            Instance("BUFG", name="hdmi_in_pix2x_bufg", i_I=pll_clk1, o_O=self._cd_pix2x.clk),
+            Instance("BUFG", name="hdmi_in_pix_bufg", i_I=pll_clk2, o_O=self._cd_pix.clk),
             MultiReg(locked_async, self.locked, "sys")
         ]
         self.comb += self._locked.status.eq(self.locked)
@@ -76,7 +77,7 @@ class Clocking(Module, AutoCSR):
         pix_rst_n = 1
         for i in range(2):
             new_pix_rst_n = Signal()
-            self.specials += Instance("FDCE", i_D=pix_rst_n, i_CE=1, i_C=ClockSignal("pix"),
+            self.specials += Instance("FDCE", name="hdmi_in_fdce", i_D=pix_rst_n, i_CE=1, i_C=ClockSignal("pix"),
                 i_CLR=~locked_async, o_Q=new_pix_rst_n)
             pix_rst_n = new_pix_rst_n
         self.comb += self._cd_pix.rst.eq(~pix_rst_n), self._cd_pix2x.rst.eq(~pix_rst_n)

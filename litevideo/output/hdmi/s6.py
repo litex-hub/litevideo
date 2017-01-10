@@ -39,6 +39,7 @@ class S6HDMIOutClocking(Module, AutoCSR):
             pix_progdone = Signal()
             pix_locked = Signal()
             self.specials += Instance("DCM_CLKGEN",
+                                      name="hdmi_out_dcm_clkgen",
                                       p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=1.0, p_CLKFX_MULTIPLY=2,
                                       p_CLKIN_PERIOD=20.0, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
 
@@ -95,6 +96,7 @@ class S6HDMIOutClocking(Module, AutoCSR):
             )
             self.specials += [
                 Instance("PLL_ADV",
+                         name="hdmi_out_pll_adv",
                          p_CLKFBOUT_MULT=10,
                          p_CLKOUT0_DIVIDE=1,   # pix10x
                          p_CLKOUT1_DIVIDE=5,   # pix2x
@@ -115,10 +117,10 @@ class S6HDMIOutClocking(Module, AutoCSR):
                          i_DWE=self._pll_write.re,
                          o_DRDY=pll_drdy,
                          i_DCLK=ClockSignal()),
-                Instance("BUFPLL", p_DIVIDE=5,
+                Instance("BUFPLL", name="hdmi_out_bufpll", p_DIVIDE=5,
                          i_PLLIN=pll_clk0, i_GCLK=ClockSignal("pix2x"), i_LOCKED=pll_locked,
                          o_IOCLK=self.cd_pix10x.clk, o_LOCK=locked_async, o_SERDESSTROBE=self.serdesstrobe),
-                Instance("BUFG", i_I=pll_clk1, o_O=self.cd_pix2x.clk),
+                Instance("BUFG", name="hdmi_out_pix2x_bufg", i_I=pll_clk1, o_O=self.cd_pix2x.clk),
                 Instance("BUFG", name="hdmi_out_pix_bufg", i_I=pll_clk2, o_O=self.cd_pix.clk),
                 MultiReg(locked_async, mult_locked, "sys")
             ]
@@ -135,8 +137,8 @@ class S6HDMIOutClocking(Module, AutoCSR):
             self.clock_domains.cd_pix10x = ClockDomain(reset_less=True)
             self.serdesstrobe = Signal()
             self.specials += [
-                Instance("BUFG", i_I=external_clocking.pll_clk1, o_O=self.cd_pix2x.clk),
-                Instance("BUFPLL", p_DIVIDE=5,
+                Instance("BUFG", name="hdmi_out_pix2x_bufg", i_I=external_clocking.pll_clk1, o_O=self.cd_pix2x.clk),
+                Instance("BUFPLL", name="hdmi_out_bufpll", p_DIVIDE=5,
                          i_PLLIN=external_clocking.pll_clk0, i_GCLK=self.cd_pix2x.clk, i_LOCKED=external_clocking.pll_locked,
                          o_IOCLK=self.cd_pix10x.clk, o_SERDESSTROBE=self.serdesstrobe),
             ]
