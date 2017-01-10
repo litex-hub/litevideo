@@ -5,9 +5,7 @@ from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
 
-
-@CEInserter()
-class YCbCr422to444Datapath(Module):
+class YCbCr422to444(PipelinedActor, Module):
     """YCbCr 422 to 444
 
       Input:                    Output:
@@ -16,55 +14,48 @@ class YCbCr422to444Datapath(Module):
                                  Cr01  Cr01 Cr23 Cr23
     """
     latency = 2
-
-    def __init__(self, dw):
-        self.sink = sink = Record(ycbcr422_layout(dw))
-        self.source = source = Record(ycbcr444_layout(dw))
-        self.first = Signal()
-
-        # # #
-
-        # delay ycbcr signals
-        ycbcr_delayed = [sink]
-        for i in range(self.latency):
-            ycbcr_n = Record(ycbcr422_layout(dw))
-            for name in ["y", "cb_cr"]:
-                self.sync += getattr(ycbcr_n, name).eq(getattr(ycbcr_delayed[-1], name))
-            ycbcr_delayed.append(ycbcr_n)
-
-        # parity
-        parity = Signal()
-        self.sync += \
-            If(self.first | ~parity,
-                parity.eq(1)
-            ).Else(
-                parity.eq(0)
-            )
-
-        # output
-        self.sync += \
-            If(parity,
-                self.source.y.eq(ycbcr_delayed[1].y),
-                self.source.cb.eq(ycbcr_delayed[1].cb_cr),
-                self.source.cr.eq(sink.cb_cr)
-            ).Else(
-                self.source.y.eq(ycbcr_delayed[1].y),
-                self.source.cb.eq(ycbcr_delayed[2].cb_cr),
-                self.source.cr.eq(ycbcr_delayed[1].cb_cr)
-            )
-
-
-class YCbCr422to444(PipelinedActor, Module):
     def __init__(self, dw=8):
         self.sink = sink = stream.Endpoint(EndpointDescription(ycbcr422_layout(dw)))
         self.source = source = stream.Endpoint(EndpointDescription(ycbcr444_layout(dw)))
 
         # # #
 
-        self.submodules.datapath = YCbCr422to444Datapath(dw)
-        PipelinedActor.__init__(self, self.datapath.latency)
-        self.comb += self.datapath.ce.eq(self.pipe_ce)
-        for name in ["y", "cb_cr"]:
-            self.comb += getattr(self.datapath.sink, name).eq(getattr(sink, name))
-        for name in ["y", "cb", "cr"]:
-            self.comb += getattr(source, name).eq(getattr(self.datapath.source, name))
+        y_fifo = stream.SyncFIFO([("data", 8)], 2)
+        cb_fifo = stream.SyncFIFO([("data", 8)], 2)
+        cr_fifo = stream.SyncFIFO([("data", 8)], 2)
+        self.submodules += y_fifo, cb_fifo, cr_fifo
+
+        # input
+        parity_in = Signal()
+        self.sync += If(sink.valid & sink.ready, parity_in.eq(~parity_in))
+        self.comb += [
+            If(~parity_in,
+                y_fifo.sink.valid.eq(sink.valid & sink.ready),
+                y_fifo.sink.data.eq(sink.y),
+                cb_fifo.sink.valid.eq(sink.valid & sink.ready),
+                cb_fifo.sink.data.eq(sink.cb_cr),
+                sink.ready.eq(y_fifo.sink.ready & cb_fifo.sink.ready),
+            ).Else(
+                y_fifo.sink.valid.eq(sink.valid & sink.ready),
+                y_fifo.sink.data.eq(sink.y),
+                cr_fifo.sink.valid.eq(sink.valid & sink.ready),
+                cr_fifo.sink.data.eq(sink.cb_cr),
+                sink.ready.eq(y_fifo.sink.ready & cr_fifo.sink.ready),
+            )
+        ]
+
+
+        # output
+        parity_out = Signal()
+        self.sync += If(source.valid & source.ready, parity_out.eq(~parity_out))
+        self.comb += [
+            source.valid.eq(y_fifo.source.valid &
+                            cb_fifo.source.valid &
+                            cr_fifo.source.valid),
+            source.y.eq(y_fifo.source.data),
+            source.cb.eq(cb_fifo.source.data),
+            source.cr.eq(cr_fifo.source.data),
+            y_fifo.source.ready.eq(source.valid & source.ready),
+            cb_fifo.source.ready.eq(source.valid & source.ready & parity_out),
+            cr_fifo.source.ready.eq(source.valid & source.ready & parity_out)
+        ]
