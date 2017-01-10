@@ -5,7 +5,8 @@ from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
 
-class YCbCr422to444(PipelinedActor, Module):
+@ResetInserter()
+class YCbCr422to444(Module):
     """YCbCr 422 to 444
 
       Input:                    Output:
@@ -20,9 +21,9 @@ class YCbCr422to444(PipelinedActor, Module):
 
         # # #
 
-        y_fifo = stream.SyncFIFO([("data", 8)], 2)
-        cb_fifo = stream.SyncFIFO([("data", 8)], 2)
-        cr_fifo = stream.SyncFIFO([("data", 8)], 2)
+        y_fifo = stream.SyncFIFO([("data", dw)], 4)
+        cb_fifo = stream.SyncFIFO([("data", dw)], 4)
+        cr_fifo = stream.SyncFIFO([("data", dw)], 4)
         self.submodules += y_fifo, cb_fifo, cr_fifo
 
         # input
@@ -34,13 +35,13 @@ class YCbCr422to444(PipelinedActor, Module):
                 y_fifo.sink.data.eq(sink.y),
                 cb_fifo.sink.valid.eq(sink.valid & sink.ready),
                 cb_fifo.sink.data.eq(sink.cb_cr),
-                sink.ready.eq(y_fifo.sink.ready & cb_fifo.sink.ready),
+                sink.ready.eq(y_fifo.sink.ready & cb_fifo.sink.ready)
             ).Else(
                 y_fifo.sink.valid.eq(sink.valid & sink.ready),
                 y_fifo.sink.data.eq(sink.y),
                 cr_fifo.sink.valid.eq(sink.valid & sink.ready),
                 cr_fifo.sink.data.eq(sink.cb_cr),
-                sink.ready.eq(y_fifo.sink.ready & cr_fifo.sink.ready),
+                sink.ready.eq(y_fifo.sink.ready & cr_fifo.sink.ready)
             )
         ]
 
