@@ -56,12 +56,22 @@ class VideoOut(Module, AutoCSR):
             self.submodules += ycbcr422to444, ycbcr2rgb, timing_delay
 
             # data / control
+            de_r = Signal()
+            core_source_valid_d = Signal()
+            core_source_data_d = Signal(16)
             sync_cd = getattr(self.sync, cd)
+            sync_cd += [
+                de_r.eq(core.source.de),
+                core_source_valid_d.eq(core.source.valid),
+                core_source_data_d.eq(core.source.data),
+            ]
+
             self.comb += [
-                ycbcr422to444.sink.valid.eq(core.source.valid),
-                ycbcr422to444.sink.y.eq(core.source.data[:8]),
-                ycbcr422to444.sink.cb_cr.eq(core.source.data[8:]),
-                core.source.ready.eq(ycbcr422to444.sink.ready),
+                core.source.ready.eq(1), # always ready, no flow control
+			    ycbcr422to444.reset.eq(core.source.de & ~de_r),
+                ycbcr422to444.sink.valid.eq(core_source_valid_d),
+                ycbcr422to444.sink.y.eq(core_source_data_d[:8]),
+                ycbcr422to444.sink.cb_cr.eq(core_source_data_d[8:]),
 
                 ycbcr422to444.source.connect(ycbcr2rgb.sink),
 

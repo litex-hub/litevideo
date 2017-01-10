@@ -30,7 +30,7 @@ source_cb = []
 source_cr = []
 
 
-def sink_generator(sink, rand_threshold=50):
+def sink_generator(sink, rand_threshold=100):
     prng = random.Random(42)
     for i in range(len(sink_cb_cr)):
         valid = 0
@@ -53,7 +53,7 @@ def sink_generator(sink, rand_threshold=50):
         yield
 
 @passive
-def source_generator(source, rand_threshold=50):
+def source_generator(source, rand_threshold=100):
     prng = random.Random(42)
     while True:
         if (yield source.ready) & (yield source.valid):
