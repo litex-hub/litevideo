@@ -1,4 +1,5 @@
 from litex.gen import *
+from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
 
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
@@ -161,6 +162,10 @@ class VideoOutCore(Module, AutoCSR):
         assert dram_port.dw == 2**log2_int(dw, need_pow2=False)
         self.source = source = stream.Endpoint(video_out_layout(dw))
 
+        self.underflow_enable = CSRStorage()
+        self.underflow_update = CSR()
+        self.underflow_counter = CSRStatus(32)
+
         # # #
 
         cd = dram_port.cd
@@ -199,4 +204,29 @@ class VideoOutCore(Module, AutoCSR):
             source.hsync.eq(timing.source.hsync),
             source.vsync.eq(timing.source.vsync),
             source.data.eq(dma.source.data)
+        ]
+
+        # underflow detection
+        underflow_enable = Signal()
+        underflow_update = Signal()
+        underflow_counter = Signal(32)
+        self.specials += MultiReg(self.underflow_enable.storage, underflow_enable)
+        underflow_update_synchronizer = PulseSynchronizer("sys", cd)
+        self.submodules += underflow_update_synchronizer
+        self.comb += [
+            underflow_update_synchronizer.i.eq(self.underflow_update.re),
+            underflow_update.eq(underflow_update_synchronizer.o)
+        ]
+        sync = getattr(self.sync, cd)
+        sync += [
+            If(underflow_enable,
+                If(~source.valid,
+                    underflow_counter.eq(underflow_counter + 1)
+                )
+            ).Else(
+                underflow_counter.eq(0)
+            ),
+            If(underflow_update,
+                self.underflow_counter.status.eq(underflow_counter)
+            )
         ]
