@@ -10,8 +10,8 @@ def rgb2ycbcr_coefs(dw, cw=None):
     return {
         "ca" : coef(0.1819, cw),
         "cb" : coef(0.0618, cw),
-        "cc" : coef(0.6495, cw),
-        "cd" : coef(0.5512, cw),
+        "cc" : coef(0.5512, cw),
+        "cd" : coef(0.6495, cw),
         "yoffset" : 2**(dw-4),
         "coffset" : 2**(dw-1),
         "ymax" : 2**dw-1,
