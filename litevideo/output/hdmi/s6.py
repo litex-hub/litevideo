@@ -42,34 +42,35 @@ class S6HDMIOutClocking(Module, AutoCSR):
             pix_locked = Signal()
 
             clkfx_md_max = max(2.0/4.0, max_pix_clk/50e6)
-            self._dcm_md1000_max = CSRConstant(clkfx_md_max*1000.0)
-            self.specials += Instance(
-                "DCM_CLKGEN",
+            self._clkfx_md_max_1000 = CSRConstant(clkfx_md_max*1000.0)
+            self.specials += Instance("DCM_CLKGEN",
                 name="hdmi_out_dcm_clkgen",
-                p_CLKFXDV_DIVIDE=2,
-                # Default m/d values - should match calculation above!
-                p_CLKFX_MULTIPLY=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=clkfx_md_max,
 
-                # Input clock signal
-                i_CLKIN=ClockSignal("base50"),
-                p_CLKIN_PERIOD=20.0,
-
-                # Output
-                o_CLKFX=clk_pix_unbuffered,
-                o_LOCKED=pix_locked,
-
-                # DCM Programming interface
-                i_PROGCLK=ClockSignal(),
-                i_PROGDATA=pix_progdata,
-                i_PROGEN=pix_progen,
-                o_PROGDONE=pix_progdone,
-
-                # Extra Parameters
+                # parameters
                 p_SPREAD_SPECTRUM="NONE",
                 p_STARTUP_WAIT="FALSE",
 
-                i_FREEZEDCM=0,
-                i_RST=ResetSignal(),
+                # reset
+				i_FREEZEDCM=0,
+                i_RST=ResetSignal()
+
+                # input
+                i_CLKIN=ClockSignal("base50"),
+                p_CLKIN_PERIOD=20.0,
+
+                # output
+                p_CLKFXDV_DIVIDE=2,
+                p_CLKFX_MULTIPLY=2,
+                p_CLKFX_DIVIDE=4,
+                p_CLKFX_MD_MAX=clkfx_md_max,
+                o_CLKFX=clk_pix_unbuffered,
+                o_LOCKED=pix_locked,
+
+                # programming interface
+                i_PROGCLK=ClockSignal(),
+                i_PROGDATA=pix_progdata,
+                i_PROGEN=pix_progen,
+                o_PROGDONE=pix_progdone
             )
 
             remaining_bits = Signal(max=11)
