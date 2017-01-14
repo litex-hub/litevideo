@@ -10,12 +10,13 @@ from litevideo.output.hdmi.encoder import Encoder
 
 # This assumes a 50MHz base clock
 class S6HDMIOutClocking(Module, AutoCSR):
-    def __init__(self, pads, external_clocking):
+    def __init__(self, pads, external_clocking, max_pix_clk=100e9):
         if external_clocking is None:
             self._cmd_data = CSRStorage(10)
             self._send_cmd_data = CSR()
             self._send_go = CSR()
             self._status = CSRStatus(4)
+            self._max_pix_clk_kHz = CSRConstant(max_pix_clk/1e3)
 
             self.clock_domains.cd_pix = ClockDomain(reset_less=True)
             self._pll_reset = CSRStorage()
@@ -37,16 +38,39 @@ class S6HDMIOutClocking(Module, AutoCSR):
             pix_progdata = Signal()
             pix_progen = Signal()
             pix_progdone = Signal()
-            pix_locked = Signal()
-            self.specials += Instance("DCM_CLKGEN",
-                                      name="hdmi_out_dcm_clkgen",
-                                      p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=1.0, p_CLKFX_MULTIPLY=2,
-                                      p_CLKIN_PERIOD=20.0, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
 
-                                      i_CLKIN=ClockSignal("base50"), o_CLKFX=clk_pix_unbuffered,
-                                      i_PROGCLK=ClockSignal(), i_PROGDATA=pix_progdata, i_PROGEN=pix_progen,
-                                      o_PROGDONE=pix_progdone, o_LOCKED=pix_locked,
-                                      i_FREEZEDCM=0, i_RST=ResetSignal())
+            pix_locked = Signal()
+
+            clkfx_md_max = max(2.0/4.0, max_pix_clk/50e9)
+            self._dcm_md1000_max = CSRConstant(clkfx_md_max*1000.0)
+            self.specials += Instance(
+                "DCM_CLKGEN",
+                name="hdmi_out_dcm_clkgen",
+                p_CLKFXDV_DIVIDE=2,
+                # Default m/d values - should match calculation above!
+                p_CLKFX_MULTIPLY=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=clkfx_md_max,
+
+                # Input clock signal
+                i_CLKIN=ClockSignal("base50"),
+                p_CLKIN_PERIOD=20.0,
+
+                # Output
+                o_CLKFX=clk_pix_unbuffered,
+                o_LOCKED=pix_locked,
+
+                # DCM Programming interface
+                i_PROGCLK=ClockSignal(),
+                i_PROGDATA=pix_progdata,
+                i_PROGEN=pix_progen,
+                o_PROGDONE=pix_progdone,
+
+                # Extra Parameters
+                p_SPREAD_SPECTRUM="NONE",
+                p_STARTUP_WAIT="FALSE",
+
+                i_FREEZEDCM=0,
+                i_RST=ResetSignal(),
+            )
 
             remaining_bits = Signal(max=11)
             transmitting = Signal()
