@@ -40,7 +40,7 @@ class S6HDMIOutClocking(Module, AutoCSR):
             pix_locked = Signal()
             self.specials += Instance("DCM_CLKGEN",
                                       name="hdmi_out_dcm_clkgen",
-                                      p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=1.0, p_CLKFX_MULTIPLY=2,
+                                      p_CLKFXDV_DIVIDE=2, p_CLKFX_DIVIDE=4, p_CLKFX_MD_MAX=2.0, p_CLKFX_MULTIPLY=2,
                                       p_CLKIN_PERIOD=20.0, p_SPREAD_SPECTRUM="NONE", p_STARTUP_WAIT="FALSE",
 
                                       i_CLKIN=ClockSignal("base50"), o_CLKFX=clk_pix_unbuffered,
