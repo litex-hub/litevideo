@@ -10,13 +10,13 @@ from litevideo.output.hdmi.encoder import Encoder
 
 # This assumes a 50MHz base clock
 class S6HDMIOutClocking(Module, AutoCSR):
-    def __init__(self, pads, external_clocking, max_pix_clk=100e9):
+    def __init__(self, pads, external_clocking, max_pix_clk=100e6):
         if external_clocking is None:
             self._cmd_data = CSRStorage(10)
             self._send_cmd_data = CSR()
             self._send_go = CSR()
             self._status = CSRStatus(4)
-            self._max_pix_clk_kHz = CSRConstant(max_pix_clk/1e3)
+            self._max_pix_clk = CSRConstant(max_pix_clk)
 
             self.clock_domains.cd_pix = ClockDomain(reset_less=True)
             self._pll_reset = CSRStorage()
@@ -41,7 +41,7 @@ class S6HDMIOutClocking(Module, AutoCSR):
 
             pix_locked = Signal()
 
-            clkfx_md_max = max(2.0/4.0, max_pix_clk/50e9)
+            clkfx_md_max = max(2.0/4.0, max_pix_clk/50e6)
             self._dcm_md1000_max = CSRConstant(clkfx_md_max*1000.0)
             self.specials += Instance(
                 "DCM_CLKGEN",
