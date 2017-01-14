@@ -52,7 +52,7 @@ class S6HDMIOutClocking(Module, AutoCSR):
 
                 # reset
 				i_FREEZEDCM=0,
-                i_RST=ResetSignal()
+                i_RST=ResetSignal(),
 
                 # input
                 i_CLKIN=ClockSignal("base50"),
