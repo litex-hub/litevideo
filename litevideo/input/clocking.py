@@ -24,10 +24,10 @@ class Clocking(Module, AutoCSR):
 
         # # #
 
-        clk_se = Signal()
+        self.clk_input = Signal()
         self.specials += Instance("IBUFDS", name="hdmi_in_ibufds",
                                   i_I=pads.clk_p, i_IB=pads.clk_n,
-                                  o_O=clk_se)
+                                  o_O=self.clk_input)
 
         clkfbout = Signal()
         pll_locked = Signal()
@@ -49,7 +49,7 @@ class Clocking(Module, AutoCSR):
                                   p_COMPENSATION="INTERNAL",
 
                                   i_CLKINSEL=1,
-                                  i_CLKIN1=clk_se,
+                                  i_CLKIN1=self.clk_input,
                                   o_CLKOUT0=pll_clk0, o_CLKOUT1=pll_clk1, o_CLKOUT2=pll_clk2,
                                   o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbout,
                                   o_LOCKED=pll_locked, i_RST=self._pll_reset.storage,
