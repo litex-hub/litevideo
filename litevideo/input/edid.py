@@ -30,7 +30,9 @@ class EDID(Module, AutoCSR):
     def __init__(self, pads, default=_default_edid):
         self._hpd_notif = CSRStatus()
         self._hpd_en = CSRStorage()
-        self.specials.mem = Memory(8, 128, init=default)
+        mem_size = len(default)
+        assert mem_size%128 == 0
+        self.specials.mem = Memory(8, mem_size, init=default)
 
         # # #
 
@@ -113,7 +115,7 @@ class EDID(Module, AutoCSR):
         update_is_read = Signal()
         self.sync += If(update_is_read, is_read.eq(din[0]))
 
-        offset_counter = Signal(max=128)
+        offset_counter = Signal(max=mem_size)
         oc_load = Signal()
         oc_inc = Signal()
         self.sync += \
@@ -228,4 +230,5 @@ class EDID(Module, AutoCSR):
 
         for state in fsm.actions.keys():
             fsm.act(state, If(start, NextState("RCV_ADDRESS")))
-            fsm.act(state, If(~self._hpd_en.storage, NextState("WAIT_START")))
+            if hasattr(pads, "hpd_en"):
+                fsm.act(state, If(~self._hpd_en.storage, NextState("WAIT_START")))
