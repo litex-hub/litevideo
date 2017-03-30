@@ -77,6 +77,15 @@ class RAWImage:
             self.data.append(data)
         return self.data
 
+    def pack_rgb16f(self):
+        self.data = []
+        for i in range(self.length):
+            data  = (self.rf[i] & 0xffff) << 32
+            data |= (self.gf[i] & 0xffff) << 16
+            data |= (self.bf[i] & 0xffff) << 0
+            self.data.append(data)
+        return self.data
+
 
     def unpack_rgb(self):
         self.r = []
@@ -99,6 +108,15 @@ class RAWImage:
             self.cr.append((data >> 0) & 0xff)
         return self.y, self.cb, self.cr
 
+    def unpack_rgb16f(self):
+        self.rf = []
+        self.gf = []
+        self.bf = []
+        for data in self.data:
+            self.rf.append((data >> 32) & 0xffff)
+            self.gf.append((data >> 16) & 0xffff)
+            self.bf.append((data >> 0 ) & 0xffff)
+        return self.rf, self.gf, self.bf
 
     # Model for our implementation
     def rgb2ycbcr_model(self):
@@ -147,3 +165,68 @@ class RAWImage:
             self.g.append(int(y + (cb - 128) * -0.34414 + (cr - 128) * -0.71414))
             self.b.append(int(y + (cb - 128) *  1.772))
         return self.r, self.g, self.b
+
+    # Convert 16 bit float to 8 bit pixel
+    def rgb16f2rgb_model(self):
+        self.r = []
+        self.g = []
+        self.b = []
+        for rf, gf, bf in zip(self.rf, self.gf, self.bf):
+            self.r.append(float2int(rf))
+            self.g.append(float2int(gf))
+            self.b.append(float2int(bf))
+        return self.r, self.g, self.b
+
+    # Convert 8 bit pixel to 16 bit float
+    def rgb2rgb16f_model(self):
+        self.rf = []
+        self.gf = []
+        self.bf = []
+        for r, g, b in zip(self.r, self.g, self.b):
+            self.rf.append(int2float(r))
+            self.gf.append(int2float(g))
+            self.bf.append(int2float(b))
+        return self.rf, self.gf, self.bf
+
+def int2float(x):
+    ''' 
+    Converts a 8 bit unsigned int to 16 bit half precision floating 
+    point represntation.Expected input is in the range [0-255]
+    Output is an 16 bit integer whose bit representation correspond 
+    to half precision float format.
+    The value of float output is in the range [0-1] 
+    (higher precision in this range)
+    '''
+    if x==0:
+        return 0
+    else:
+        y = bin(x)[2:].zfill(8)     # Unpack in string
+        for i in range(len(y)):     # Leading one detector 
+            if y[i] == '1':         
+                shift_val = i   
+                break
+
+        sign = '0'
+        exp = 15 - 1 - shift_val
+        frac = y[shift_val+1:][::-1].zfill(10)[::-1]
+        x = sign+bin(exp)[2:].zfill(5)+frac     # Pack together in string
+        z = int(x, 2)                           # Convert string to correspondinf float
+        return z
+
+def float2int(x):
+    ''' 
+    Converts a 16 bit half precision floating point represntation
+    to 8 bit unsigned int.
+    Output is an 16 bit integer whose bit representation correspond 
+    to half precision float format.    
+    Input is in the range [0-1] 
+    Expected output is in the corresponding range [0-255]
+        
+    '''
+    if x==0:
+        return 0
+    else:
+        y = bin(x)[2:].zfill(16)    # Unpack in string
+        exp = y[1:6]                # Unpack exp
+        frac = '1'+y[6:16]          # Unpack frac
+        return int(frac,2) >> (17-int(exp,2))
