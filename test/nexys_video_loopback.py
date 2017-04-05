@@ -32,20 +32,20 @@ class _CRG(Module):
         pll_clk200 = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
-                     p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+                p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
-                     # VCO @ 800 MHz
-                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
-                     i_CLKIN1=clk100, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+                # VCO @ 800 MHz
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
+                i_CLKIN1=clk100, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-                     # 100 MHz
-                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0,
-                     o_CLKOUT0=pll_sys,
+                # 100 MHz
+                p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0,
+                o_CLKOUT0=pll_sys,
 
-                     # 200 MHz
-                     p_CLKOUT3_DIVIDE=4, p_CLKOUT3_PHASE=0.0,
-                     o_CLKOUT3=pll_clk200
+                # 200 MHz
+                p_CLKOUT3_DIVIDE=4, p_CLKOUT3_PHASE=0.0,
+                o_CLKOUT3=pll_clk200
             ),
             Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
@@ -196,9 +196,9 @@ class InvalidSymbolDetector(Module):
 
 class AlignmentDetector(Module):
     def __init__(self, invalid_symbol):
-        self.delay_count = Signal(5)
+        self.delay_value = Signal(5)
         self.delay_ce = Signal()
-        self.bitslip = Signal()
+        self.bitslip_value = Signal(4)
 
         # # #
 
@@ -216,15 +216,14 @@ class AlignmentDetector(Module):
             ).Else(
                 holdoff.eq(holdoff-1)
             ),
-            self.bitslip.eq(0),
             self.delay_ce.eq(0),
             If(error_seen,
                 If(signal_quality[24:28] == 0xf,
                     holdoff.eq(2**10-1),
-                    If(self.delay_count == 31,
-                        self.bitslip.eq(1)
+                    If(self.delay_value == 31,
+                        self.bitslip_value.eq(self.bitslip_value+1)
                     ),
-                    self.delay_count.eq(self.delay_count+1),
+                    self.delay_value.eq(self.delay_value+1),
                     self.delay_ce.eq(1),
                     signal_quality[24:28].eq(0x4)
                 ).Else(
@@ -237,11 +236,28 @@ class AlignmentDetector(Module):
             )
         ]
 
+
+class BitSlip(Module):
+    def __init__(self, dw):
+        self.i = Signal(dw)
+        self.o = Signal(dw)
+        self.value = Signal(max=dw)
+
+        # # #
+
+        r = Signal(2*dw)
+        self.sync += r.eq(Cat(r[dw:], self.i))
+        cases = {}
+        for i in range(dw):
+            cases[i] = self.o.eq(r[i:dw+i])
+        self.sync += Case(self.value, cases)
+
+
 class Deserialiser1to10(Module):
     def __init__(self):
         self.delay_ce = Signal()
-        self.delay_count = Signal(5)
-        self.bitslip = Signal()
+        self.delay_value = Signal(5)
+        self.bitslip_value = Signal(4)
 
         self.serial = Signal()
         self.reset = Signal()
@@ -250,8 +266,10 @@ class Deserialiser1to10(Module):
         # # #
 
         delayed = Signal()
-        shift1 = Signal()
-        shift2 = Signal()
+        shift = Signal(2)
+
+        self.submodules.bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
+        self.comb += self.bitslip.value.eq(self.bitslip_value)
 
         self.specials += [
             Instance("IDELAYE2",
@@ -263,7 +281,7 @@ class Deserialiser1to10(Module):
                 i_LD=1,
                 i_CE=self.delay_ce,
                 i_LDPIPEEN=0, i_INC=0,
-                i_CINVCTRL=0, i_CNTVALUEIN=self.delay_count,
+                i_CINVCTRL=0, i_CNTVALUEIN=self.delay_value,
 
                 i_DATAIN=self.serial, o_DATAOUT=delayed
             ),
@@ -276,14 +294,14 @@ class Deserialiser1to10(Module):
                 i_CE1=1, i_CE2=1,
                 i_RST=self.reset,
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
-                i_BITSLIP=self.bitslip,
+                i_BITSLIP=0,
 
-                o_Q1=self.data[9], o_Q2=self.data[8],
-                o_Q3=self.data[7], o_Q4=self.data[6],
-                o_Q5=self.data[5], o_Q6=self.data[4],
-                o_Q7=self.data[3], o_Q8=self.data[2],
+                o_Q1=self.bitslip.i[9], o_Q2=self.bitslip.i[8],
+                o_Q3=self.bitslip.i[7], o_Q4=self.bitslip.i[6],
+                o_Q5=self.bitslip.i[5], o_Q6=self.bitslip.i[4],
+                o_Q7=self.bitslip.i[3], o_Q8=self.bitslip.i[2],
 
-                o_SHIFTOUT1=shift1, o_SHIFTOUT2=shift2,
+                o_SHIFTOUT1=shift[0], o_SHIFTOUT2=shift[1],
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=10, p_DATA_RATE="DDR",
@@ -294,16 +312,17 @@ class Deserialiser1to10(Module):
                 i_CE1=1, i_CE2=1,
                 i_RST=self.reset,
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
-                i_BITSLIP=self.bitslip,
+                i_BITSLIP=0,
 
-                o_SHIFTIN1=shift1, o_SHIFTIN2=shift2,
+                o_SHIFTIN1=shift[0], o_SHIFTIN2=shift[1],
 
                 #o_Q1=, o_Q2=,
-                o_Q3=self.data[1], o_Q4=self.data[0],
+                o_Q3=self.bitslip.i[1], o_Q4=self.bitslip.i[0],
                 #o_Q5=, o_Q6=,
                 #o_Q7=, o_Q8=
             ),
         ]
+        self.comb += self.data.eq(self.bitslip.o)
 
 
 class HDMIInputChannel(Module):
@@ -319,7 +338,7 @@ class HDMIInputChannel(Module):
         # # #
 
         delay_ce = Signal()
-        delay_count = Signal(5)
+        delay_value = Signal(5)
         bitslip = Signal()
 
         symbol = Signal(10)
@@ -334,8 +353,8 @@ class HDMIInputChannel(Module):
         self.submodules += deserialiser
         self.comb += [
             deserialiser.delay_ce.eq(alignment_detector.delay_ce),
-            deserialiser.delay_count.eq(alignment_detector.delay_count),
-            deserialiser.bitslip.eq(alignment_detector.bitslip),
+            deserialiser.delay_value.eq(alignment_detector.delay_value),
+            deserialiser.bitslip_value.eq(alignment_detector.bitslip_value),
             deserialiser.reset.eq(self.reset),
             deserialiser.serial.eq(data),
             symbol.eq(deserialiser.data)
@@ -445,9 +464,9 @@ class HDMILoopback(Module):
                 p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=hdmi_in_clk, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
-                # CLK0
+                # pix clk
                 p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=pix_clk_pll,
-                # CLK1
+                # pix5x clk
                 p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=pix5x_clk_pll
             ),
             Instance("BUFG", i_I=pix_clk_pll, o_O=pix_clk),
@@ -456,9 +475,11 @@ class HDMILoopback(Module):
 
         self.clock_domains.cd_pix = ClockDomain("pix")
         self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
-        self.comb += self.cd_pix.rst.eq(ResetSignal()) # FIXME
-        self.comb += self.cd_pix.clk.eq(pix_clk)
-        self.comb += self.cd_pix5x.clk.eq(pix5x_clk)
+        self.comb += [
+            self.cd_pix.rst.eq(ResetSignal()), # FIXME
+            self.cd_pix.clk.eq(pix_clk),
+            self.cd_pix5x.clk.eq(pix5x_clk)
+        ]
 
         reset_timer = WaitTimer(256)
         self.submodules += reset_timer
@@ -481,28 +502,28 @@ class HDMILoopback(Module):
                 data[i].eq(chan.data)
             ]
 
-        blank = Signal()
+        de = Signal()
         hsync = Signal()
         vsync = Signal()
-        red   = Signal(8)
-        green = Signal(8)
-        blue  = Signal(8)
+        r = Signal(8)
+        g = Signal(8)
+        b = Signal(8)
 
         self.sync.pix += [
+            de.eq(0),
             If(ctl_valid[0] & ctl_valid[1] & ctl_valid[2],
                 vsync.eq(ctl[0][1]),
                 hsync.eq(ctl[0][0]),
-                blank.eq(1),
-                red.eq(0),
-                green.eq(0),
-                blue.eq(0)
+                r.eq(0),
+                g.eq(0),
+                b.eq(0)
             ).Elif(data_valid[0] & data_valid[1] & data_valid[2],
                 vsync.eq(0),
                 hsync.eq(0),
-                blank.eq(0),
-                red.eq(data[2]),
-                green.eq(data[1]),
-                blue.eq(data[0])
+                de.eq(1),
+                r.eq(data[2]),
+                g.eq(data[1]),
+                b.eq(data[0])
             )
         ]
 
@@ -513,12 +534,12 @@ class HDMILoopback(Module):
         self.comb += [
             self.hdmi_output_clkgen.data.eq(Signal(10, reset=0b0000011111)),
             self.hdmi_output.sink.valid.eq(1),
-            self.hdmi_output.sink.de.eq(~blank),
+            self.hdmi_output.sink.de.eq(de),
             self.hdmi_output.sink.hsync.eq(hsync),
             self.hdmi_output.sink.vsync.eq(vsync),
-            self.hdmi_output.sink.r.eq(red),
-            self.hdmi_output.sink.g.eq(green),
-            self.hdmi_output.sink.b.eq(blue)
+            self.hdmi_output.sink.r.eq(r),
+            self.hdmi_output.sink.g.eq(g),
+            self.hdmi_output.sink.b.eq(b)
         ]
         self.comb += hdmi_out_pads.scl.eq(1)
 
