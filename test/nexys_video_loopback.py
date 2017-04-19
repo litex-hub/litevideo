@@ -5,7 +5,7 @@ import os
 from litex.gen import *
 from litex.gen.genlib.resetsync import AsyncResetSynchronizer
 from litex.gen.fhdl.specials import Tristate
-from litex.gen.genlib.misc import WaitTimer
+from litex.gen.genlib.misc import WaitTimer, BitSlip
 from litex.build.xilinx import VivadoProgrammer
 
 from litex.boards.platforms import nexys_video
@@ -235,22 +235,6 @@ class AlignmentDetector(Module):
                 )
             )
         ]
-
-
-class BitSlip(Module):
-    def __init__(self, dw):
-        self.i = Signal(dw)
-        self.o = Signal(dw)
-        self.value = Signal(max=dw)
-
-        # # #
-
-        r = Signal(2*dw)
-        self.sync += r.eq(Cat(r[dw:], self.i))
-        cases = {}
-        for i in range(dw):
-            cases[i] = self.o.eq(r[i:dw+i])
-        self.sync += Case(self.value, cases)
 
 
 class Deserialiser1to10(Module):
