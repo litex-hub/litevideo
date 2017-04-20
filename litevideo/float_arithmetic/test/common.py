@@ -8,6 +8,7 @@ import numpy as np
 from litex.gen import *
 from litex.soc.interconnect.stream import *
 
+
 class RAWImage:
     def __init__(self):
         self.a = None

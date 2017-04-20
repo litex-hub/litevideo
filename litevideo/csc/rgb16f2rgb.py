@@ -5,6 +5,7 @@ from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
 
+
 @CEInserter()
 class PIXF2PIXDatapath(Module):
     """ 
@@ -13,7 +14,6 @@ class PIXF2PIXDatapath(Module):
     int represented by a pixel in the range [0-255]
     """
     latency = 2
-
     def __init__(self, pixf_w, pix_w):
         self.sink = sink = Record(pixf_layout(pixf_w))
         self.source = source = Record(pix_layout(pix_w))
@@ -38,28 +38,27 @@ class PIXF2PIXDatapath(Module):
         exp_offset = Signal(5)
         
         self.sync += [
-        
-            exp_offset.eq(15 - sink.pixf[10:15] -1),    
+            exp_offset.eq(15 - sink.pixf[10:15] - 1),    
             frac[:10].eq(sink.pixf[:10]),
-            frac[10].eq(1),
+            frac[10].eq(1)
         ]
 
         # Stage 2
         # Right shift frac by exp_offset
         # Most significant 8 bits of frac assigned to uint8 pix 
-        self.sync += [
-            source.pix.eq( (frac >> exp_offset)[3:]),
-        ]
+        self.sync += source.pix.eq( (frac >> exp_offset)[3:])
+
 
 class RGB16f2RGB(PipelinedActor, Module):
     def __init__(self, rgb_w=8, rgb16f_w=16):
         self.sink = sink = stream.Endpoint(EndpointDescription(rgb16f_layout(rgb16f_w)))
         self.source = source = stream.Endpoint(EndpointDescription(rgb_layout(rgb_w)))
+
         # # #
 
         for name in ["r", "g", "b"]:
             self.submodules.datapath = PIXF2PIXDatapath(rgb16f_w, rgb_w)
-            PipelinedActor.__init__(self, self.datapath.latency)
+            PipelinedActor.__init__(self, self.datapath.latency) # FIXME
             self.comb += self.datapath.ce.eq(self.pipe_ce)
             self.comb += getattr(self.datapath.sink, "pixf").eq(getattr(sink, name +"f"))
             self.comb += getattr(source, name).eq(getattr(self.datapath.source, "pix"))
