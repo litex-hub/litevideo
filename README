@@ -3,45 +3,73 @@
          / /__/ / __/ -_) |/ / / _  / -_) _ \
         /____/_/\__/\__/|___/_/\_,_/\__/\___/
 
-             Copyright 2016 / EnjoyDigital
-             Copyright 2016 / TimVideos.us
+          Copyright 2016=2017 / EnjoyDigital
+          Copyright 2016-2017 / TimVideos.us
 
       Small footprint and configurable video cores
-
-              ********************
-              * WORK IN PROGRESS *
-              ********************
+                 powered by LiteX
 
 [> Intro
 ---------
-LiteVideo aims to create FPGA video cores for various interfaces:
--HDMI
--VGA
--DisplayPort
--...
+LiteVideo provides small footprint and configurable video cores.
 
-The initial code was developed by M-Labs Ltd for the Mixxeo board.
+LiteVideo is part of LiteX libraries whose aims are to lower entry level of
+complex FPGA cores by providing simple, elegant and efficient implementations
+of components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
 
-This is a work in progress.
+The core uses simple and specific streaming buses and will provides in the future
+adapters to use standardized AXI or Avalon-ST streaming buses.
+
+Since Python is used to describe the HDL, the core is highly and easily
+configurable.
+
+LiteVideo is built using LiteX and uses technologies developed in partnership with
+M-Labs Ltd:
+ - Migen enables generating HDL with Python in an efficient way.
+ - MiSoC provides the basic blocks to build a powerful and small footprint SoC.
+
+LiteVideo can be used as LiteX library or can be integrated with your standard
+design flow by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 ------------
-TODO
+PHY:
+  - HDMI input (Spartan6, 7-Series)
+  - HDMI output (Spartan6, 7-Series) 
+Core:
+  - DMA (input/output)
+  - Triple buffering (output)
+  - Color space conversion (RGB <--> YCbCr)
+  - Chroma resampling
+  - Floating point arithmetic (WIP)
+
+[> FPGA Proven
+---------------
+LiteVideo is already used in commercial and open-source designs:
+- HDMI2USB: http://hdmi2usb.tv/home/
+- and others commercial designs...
 
 [> Possible improvements
 -------------------------
-TODO
+- add standardized interfaces (AXI, Avalon-ST)
+- add Display Port support
+- add more documentation
+- ... See below Support and consulting :)
 
 [> Getting started
 -------------------
-TODO
+1. Install Python3 and your vendor's software
+
+2. Obtain LiteX and install it:
+  git clone https://github.com/enjoy-digital/litex --recursive
+  cd litex
+  python3 setup.py develop
+  cd ..
+
+3. TODO
 
 [> Simulations
 ---------------
-TODO
-
-[> Tests
----------
 TODO
 
 [> License
