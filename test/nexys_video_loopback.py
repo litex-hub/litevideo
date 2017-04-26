@@ -238,12 +238,17 @@ class AlignmentDetector(Module):
 
 
 class DataCapture(Module):
-    def __init__(self):
+    def __init__(self, pad_p, pad_n):
         self.reset = Signal()
-        self.serial = Signal()
         self.data = Signal(10)
 
         # # #
+
+        # IO
+        pad_se = Signal()
+        self.specials += Instance("IBUFDS",
+                                  i_I=pad_p, i_IB=pad_n,
+                                  o_O=pad_se)
 
         invalid_symbol_detector = InvalidSymbolDetector(self.data)
         self.submodules += invalid_symbol_detector
@@ -269,7 +274,7 @@ class DataCapture(Module):
                 i_LDPIPEEN=0, i_INC=0,
                 i_CINVCTRL=0, i_CNTVALUEIN=alignment_detector.delay_value,
 
-                i_DATAIN=self.serial, o_DATAOUT=delayed
+                i_DATAIN=pad_se, o_DATAOUT=delayed
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=10, p_DATA_RATE="DDR",
@@ -312,7 +317,7 @@ class DataCapture(Module):
 
 
 class HDMIInputChannel(Module):
-    def __init__(self, data):
+    def __init__(self, pad_p, pad_n):
         self.reset = Signal()
 
         self.ctl_valid = Signal()
@@ -323,11 +328,10 @@ class HDMIInputChannel(Module):
 
         # # #
 
-        data_capture = DataCapture()
+        data_capture = DataCapture(pad_p, pad_n)
         self.submodules += data_capture
         self.comb += [
-            data_capture.reset.eq(self.reset),
-            data_capture.serial.eq(data)
+            data_capture.reset.eq(self.reset)
         ]
 
         decoder = Decoding()
@@ -361,19 +365,7 @@ class HDMILoopback(Module):
             Instance("IBUFDS",
                 i_I=hdmi_in_pads.clk_p,
                 i_IB=hdmi_in_pads.clk_n,
-                o_O=hdmi_in_clk),
-            Instance("IBUFDS",
-                i_I=hdmi_in_pads.data0_p,
-                i_IB=hdmi_in_pads.data0_n,
-                o_O=hdmi_in_data[0]),
-            Instance("IBUFDS",
-                i_I=hdmi_in_pads.data1_p,
-                i_IB=hdmi_in_pads.data1_n,
-                o_O=hdmi_in_data[1]),
-            Instance("IBUFDS",
-                i_I=hdmi_in_pads.data2_p,
-                i_IB=hdmi_in_pads.data2_n,
-                o_O=hdmi_in_data[2]),
+                o_O=hdmi_in_clk)
         ]
 
         # edid
@@ -460,15 +452,17 @@ class HDMILoopback(Module):
         data_valid = Signal(3)
         data = [Signal(8) for i in range(3)]
 
-        for i in range(3):
-            chan = HDMIInputChannel(hdmi_in_data[i])
+        for datan in range(3):
+            name = "data" + str(datan)
+            chan = HDMIInputChannel(getattr(hdmi_in_pads, name + "_p"),
+                                    getattr(hdmi_in_pads, name + "_n"))
             self.submodules += chan
             self.comb += [
                 chan.reset.eq(~reset_timer.done),
-                ctl_valid[i].eq(chan.ctl_valid),
-                ctl[i].eq(chan.ctl),
-                data_valid[i].eq(chan.data_valid),
-                data[i].eq(chan.data)
+                ctl_valid[datan].eq(chan.ctl_valid),
+                ctl[datan].eq(chan.ctl),
+                data_valid[datan].eq(chan.data_valid),
+                data[datan].eq(chan.data)
             ]
 
         de = Signal()
