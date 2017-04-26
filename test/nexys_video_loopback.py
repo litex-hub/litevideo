@@ -232,6 +232,43 @@ class Alignment(Module):
         ]
 
 
+class Clocking(Module):
+    def __init__(self, pads):
+        self.locked = Signal()
+        self.clock_domains.cd_pix = ClockDomain()
+        self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
+
+        # # #
+
+        self.clk_input = Signal()
+        self.specials += Instance("IBUFDS", name="hdmi_in_ibufds",
+                                  i_I=pads.clk_p, i_IB=pads.clk_n,
+                                  o_O=self.clk_input)
+
+        clkfbout = Signal()
+        mmcm_locked = Signal()
+        mmcm_clk0 = Signal()
+        mmcm_clk1 = Signal()
+        self.specials += [
+            Instance("MMCME2_ADV",
+                p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
+
+                # VCO
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.7,
+                p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                i_CLKIN1=self.clk_input, i_CLKFBIN=clkfbout, o_CLKFBOUT=clkfbout,
+
+                # pix clk
+                p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
+                # pix5x clk
+                p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1
+            ),
+            Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
+            Instance("BUFIO", i_I=mmcm_clk1, o_O=self.cd_pix5x.clk),
+        ]
+        self.comb += self.cd_pix.rst.eq(ResetSignal()) # FIXME
+
+
 class DataCapture(Module):
     def __init__(self, pad_p, pad_n):
         self.d = Signal(10)
@@ -344,17 +381,6 @@ class HDMILoopback(Module):
         hdmi_in_pads = platform.request("hdmi_in")
         hdmi_out_pads = platform.request("hdmi_out")
 
-        # input buffers
-        hdmi_in_clk = Signal()
-        hdmi_in_data = Signal(3)
-
-        self.specials += [
-            Instance("IBUFDS",
-                i_I=hdmi_in_pads.clk_p,
-                i_IB=hdmi_in_pads.clk_n,
-                o_O=hdmi_in_clk)
-        ]
-
         # edid
         edid_rom = [
             0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
@@ -396,38 +422,7 @@ class HDMILoopback(Module):
             hdmi_in_pads.txen.eq(1)
         ]
 
-        # mmcm
-        pix_clk_pll = Signal()
-        pix5x_clk_pll = Signal()
-        pix_clk = Signal()
-        pix5x_clk = Signal()
-        mmcm_fb = Signal()
-        mmcm_locked = Signal()
-        self.specials += [
-            Instance("MMCME2_ADV",
-                p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
-
-                # VCO
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.7,
-                p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=hdmi_in_clk, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
-
-                # pix clk
-                p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=pix_clk_pll,
-                # pix5x clk
-                p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=pix5x_clk_pll
-            ),
-            Instance("BUFG", i_I=pix_clk_pll, o_O=pix_clk),
-            Instance("BUFIO", i_I=pix5x_clk_pll, o_O=pix5x_clk),
-        ]
-
-        self.clock_domains.cd_pix = ClockDomain("pix")
-        self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
-        self.comb += [
-            self.cd_pix.rst.eq(ResetSignal()), # FIXME
-            self.cd_pix.clk.eq(pix_clk),
-            self.cd_pix5x.clk.eq(pix5x_clk)
-        ]
+        self.submodules.clocking = Clocking(hdmi_in_pads)
 
         # hdmi input
         ctl_valid = Signal(3)
