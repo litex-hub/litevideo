@@ -65,11 +65,15 @@ class _CRG(Module):
 
 
 # TODO: to be removed when we'll have the phase detector working
-class InvalidSymbolDetector(Module):
+class Alignment(Module):
     def __init__(self, symbol):
-        self.invalid = Signal()
+        self.delay_value = Signal(5)
+        self.delay_ce = Signal()
+        self.bitslip_value = Signal(4)
 
         # # #
+
+        invalid = Signal()
 
         valid_symbols = [
             0b1111111111, 0b0100000000, 0b0111111111, 0b1100000000,
@@ -189,18 +193,9 @@ class InvalidSymbolDetector(Module):
             0b1011111111, 0b0000000000, 0b0011111111, 0b1000000000,
             0b0010101011, 0b0101010100, 0b1010101011, 0b1101010100]
 
-        self.comb += self.invalid.eq(1)
+        self.comb += invalid.eq(1)
         for s in valid_symbols:
-            self.comb += If(symbol == s, self.invalid.eq(0))
-
-
-class AlignmentDetector(Module):
-    def __init__(self, invalid_symbol):
-        self.delay_value = Signal(5)
-        self.delay_ce = Signal()
-        self.bitslip_value = Signal(4)
-
-        # # #
+            self.comb += If(symbol == s, invalid.eq(0))
 
         count = Signal(20)
         signal_quality = Signal(28)
@@ -210,7 +205,7 @@ class AlignmentDetector(Module):
         self.sync.pix += [
             error_seen.eq(0),
             If(holdoff == 0,
-                If(invalid_symbol,
+                If(invalid,
                     error_seen.eq(1)
                 )
             ).Else(
@@ -249,17 +244,14 @@ class DataCapture(Module):
                                   i_I=pad_p, i_IB=pad_n,
                                   o_O=pad_se)
 
-        invalid_symbol_detector = InvalidSymbolDetector(self.d)
-        self.submodules += invalid_symbol_detector
-
-        alignment_detector = AlignmentDetector(invalid_symbol_detector.invalid)
-        self.submodules += alignment_detector
+        alignment = Alignment(self.d)
+        self.submodules += alignment
 
         delayed = Signal()
         shift = Signal(2)
 
         self.submodules.bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
-        self.comb += self.bitslip.value.eq(alignment_detector.delay_value)
+        self.comb += self.bitslip.value.eq(alignment.delay_value)
 
         self.specials += [
             Instance("IDELAYE2",
@@ -269,9 +261,9 @@ class DataCapture(Module):
 
                 i_C=ClockSignal("pix"),
                 i_LD=1,
-                i_CE=alignment_detector.delay_ce,
+                i_CE=alignment.delay_ce,
                 i_LDPIPEEN=0, i_INC=0,
-                i_CINVCTRL=0, i_CNTVALUEIN=alignment_detector.delay_value,
+                i_CINVCTRL=0, i_CNTVALUEIN=alignment.delay_value,
 
                 i_DATAIN=pad_se, o_DATAOUT=delayed
             ),
