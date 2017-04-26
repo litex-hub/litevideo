@@ -244,14 +244,15 @@ class DataCapture(Module):
                                   i_I=pad_p, i_IB=pad_n,
                                   o_O=pad_se)
 
+        pad_delayed_master = Signal()
+        shiftout_master = Signal(2)
+
         alignment = Alignment(self.d)
         self.submodules += alignment
 
-        delayed = Signal()
-        shift = Signal(2)
-
-        self.submodules.bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
-        self.comb += self.bitslip.value.eq(alignment.delay_value)
+        bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
+        self.submodules += bitslip
+        self.comb += bitslip.value.eq(alignment.delay_value)
 
         self.specials += [
             Instance("IDELAYE2",
@@ -265,25 +266,25 @@ class DataCapture(Module):
                 i_LDPIPEEN=0, i_INC=0,
                 i_CINVCTRL=0, i_CNTVALUEIN=alignment.delay_value,
 
-                i_DATAIN=pad_se, o_DATAOUT=delayed
+                i_DATAIN=pad_se, o_DATAOUT=pad_delayed_master
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=10, p_DATA_RATE="DDR",
                 p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
                 p_NUM_CE=1, p_IOBDELAY="IFD",
 
-                i_DDLY=delayed,
+                i_DDLY=pad_delayed_master,
                 i_CE1=1, i_CE2=1,
                 i_RST=0,
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_BITSLIP=0,
 
-                o_Q1=self.bitslip.i[9], o_Q2=self.bitslip.i[8],
-                o_Q3=self.bitslip.i[7], o_Q4=self.bitslip.i[6],
-                o_Q5=self.bitslip.i[5], o_Q6=self.bitslip.i[4],
-                o_Q7=self.bitslip.i[3], o_Q8=self.bitslip.i[2],
+                o_Q1=bitslip.i[9], o_Q2=bitslip.i[8],
+                o_Q3=bitslip.i[7], o_Q4=bitslip.i[6],
+                o_Q5=bitslip.i[5], o_Q6=bitslip.i[4],
+                o_Q7=bitslip.i[3], o_Q8=bitslip.i[2],
 
-                o_SHIFTOUT1=shift[0], o_SHIFTOUT2=shift[1],
+                o_SHIFTOUT1=shiftout_master[0], o_SHIFTOUT2=shiftout_master[1],
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=10, p_DATA_RATE="DDR",
@@ -296,15 +297,15 @@ class DataCapture(Module):
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_BITSLIP=0,
 
-                o_SHIFTIN1=shift[0], o_SHIFTIN2=shift[1],
+                o_SHIFTIN1=shiftout_master[0], o_SHIFTIN2=shiftout_master[1],
 
                 #o_Q1=, o_Q2=,
-                o_Q3=self.bitslip.i[1], o_Q4=self.bitslip.i[0],
+                o_Q3=bitslip.i[1], o_Q4=bitslip.i[0],
                 #o_Q5=, o_Q6=,
                 #o_Q7=, o_Q8=
             ),
         ]
-        self.comb += self.d.eq(self.bitslip.o)
+        self.comb += self.d.eq(bitslip.o)
 
 
 class HDMIInputChannel(Module):
