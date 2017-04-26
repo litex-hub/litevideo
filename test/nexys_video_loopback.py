@@ -237,23 +237,25 @@ class AlignmentDetector(Module):
         ]
 
 
-class Deserialiser1to10(Module):
+class DataCapture(Module):
     def __init__(self):
-        self.delay_ce = Signal()
-        self.delay_value = Signal(5)
-        self.bitslip_value = Signal(4)
-
-        self.serial = Signal()
         self.reset = Signal()
+        self.serial = Signal()
         self.data = Signal(10)
 
         # # #
+
+        invalid_symbol_detector = InvalidSymbolDetector(self.data)
+        self.submodules += invalid_symbol_detector
+
+        alignment_detector = AlignmentDetector(invalid_symbol_detector.invalid)
+        self.submodules += alignment_detector
 
         delayed = Signal()
         shift = Signal(2)
 
         self.submodules.bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
-        self.comb += self.bitslip.value.eq(self.bitslip_value)
+        self.comb += self.bitslip.value.eq(alignment_detector.delay_value)
 
         self.specials += [
             Instance("IDELAYE2",
@@ -263,9 +265,9 @@ class Deserialiser1to10(Module):
 
                 i_C=ClockSignal("pix"),
                 i_LD=1,
-                i_CE=self.delay_ce,
+                i_CE=alignment_detector.delay_ce,
                 i_LDPIPEEN=0, i_INC=0,
-                i_CINVCTRL=0, i_CNTVALUEIN=self.delay_value,
+                i_CINVCTRL=0, i_CNTVALUEIN=alignment_detector.delay_value,
 
                 i_DATAIN=self.serial, o_DATAOUT=delayed
             ),
@@ -321,35 +323,18 @@ class HDMIInputChannel(Module):
 
         # # #
 
-        delay_ce = Signal()
-        delay_value = Signal(5)
-        bitslip = Signal()
-
-        symbol = Signal(10)
-
-        invalid_symbol_detector = InvalidSymbolDetector(symbol)
-        self.submodules += invalid_symbol_detector
-
-        alignment_detector = AlignmentDetector(invalid_symbol_detector.invalid)
-        self.submodules += alignment_detector
-
-        deserialiser = Deserialiser1to10()
-        self.submodules += deserialiser
+        data_capture = DataCapture()
+        self.submodules += data_capture
         self.comb += [
-            deserialiser.delay_ce.eq(alignment_detector.delay_ce),
-            deserialiser.delay_value.eq(alignment_detector.delay_value),
-            deserialiser.bitslip_value.eq(alignment_detector.bitslip_value),
-            deserialiser.reset.eq(self.reset),
-            deserialiser.serial.eq(data),
-            symbol.eq(deserialiser.data)
+            data_capture.reset.eq(self.reset),
+            data_capture.serial.eq(data)
         ]
 
         decoder = Decoding()
         self.submodules += decoder
         self.comb += [
             decoder.valid_i.eq(1),
-            decoder.input.eq(symbol),
-
+            decoder.input.eq(data_capture.data),
             If(decoder.valid_o,
                 If(decoder.output.de,
                     self.data_valid.eq(1),
