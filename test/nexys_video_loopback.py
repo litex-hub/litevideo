@@ -239,8 +239,7 @@ class AlignmentDetector(Module):
 
 class DataCapture(Module):
     def __init__(self, pad_p, pad_n):
-        self.reset = Signal()
-        self.data = Signal(10)
+        self.d = Signal(10)
 
         # # #
 
@@ -250,7 +249,7 @@ class DataCapture(Module):
                                   i_I=pad_p, i_IB=pad_n,
                                   o_O=pad_se)
 
-        invalid_symbol_detector = InvalidSymbolDetector(self.data)
+        invalid_symbol_detector = InvalidSymbolDetector(self.d)
         self.submodules += invalid_symbol_detector
 
         alignment_detector = AlignmentDetector(invalid_symbol_detector.invalid)
@@ -283,7 +282,7 @@ class DataCapture(Module):
 
                 i_DDLY=delayed,
                 i_CE1=1, i_CE2=1,
-                i_RST=self.reset,
+                i_RST=0,
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_BITSLIP=0,
 
@@ -301,7 +300,7 @@ class DataCapture(Module):
 
                 i_DDLY=0,
                 i_CE1=1, i_CE2=1,
-                i_RST=self.reset,
+                i_RST=0,
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_BITSLIP=0,
 
@@ -313,13 +312,11 @@ class DataCapture(Module):
                 #o_Q7=, o_Q8=
             ),
         ]
-        self.comb += self.data.eq(self.bitslip.o)
+        self.comb += self.d.eq(self.bitslip.o)
 
 
 class HDMIInputChannel(Module):
     def __init__(self, pad_p, pad_n):
-        self.reset = Signal()
-
         self.ctl_valid = Signal()
         self.ctl = Signal(2)
 
@@ -330,15 +327,12 @@ class HDMIInputChannel(Module):
 
         data_capture = DataCapture(pad_p, pad_n)
         self.submodules += data_capture
-        self.comb += [
-            data_capture.reset.eq(self.reset)
-        ]
 
         decoder = Decoding()
         self.submodules += decoder
         self.comb += [
             decoder.valid_i.eq(1),
-            decoder.input.eq(data_capture.data),
+            decoder.input.eq(data_capture.d),
             If(decoder.valid_o,
                 If(decoder.output.de,
                     self.data_valid.eq(1),
@@ -442,10 +436,6 @@ class HDMILoopback(Module):
             self.cd_pix5x.clk.eq(pix5x_clk)
         ]
 
-        reset_timer = WaitTimer(256)
-        self.submodules += reset_timer
-        self.comb += reset_timer.wait.eq(mmcm_locked)
-
         # hdmi input
         ctl_valid = Signal(3)
         ctl = [Signal(2) for i in range(3)]
@@ -458,7 +448,6 @@ class HDMILoopback(Module):
                                     getattr(hdmi_in_pads, name + "_n"))
             self.submodules += chan
             self.comb += [
-                chan.reset.eq(~reset_timer.done),
                 ctl_valid[datan].eq(chan.ctl_valid),
                 ctl[datan].eq(chan.ctl),
                 data_valid[datan].eq(chan.data_valid),
