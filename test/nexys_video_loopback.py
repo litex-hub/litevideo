@@ -494,10 +494,10 @@ class HDMILoopback(Module):
         b = Signal(8)
 
         self.sync.pix += [
-            de.eq(0),
             If(ctl_valid[0] & ctl_valid[1] & ctl_valid[2],
                 vsync.eq(ctl[0][1]),
                 hsync.eq(ctl[0][0]),
+                de.eq(0),
                 r.eq(0),
                 g.eq(0),
                 b.eq(0)
