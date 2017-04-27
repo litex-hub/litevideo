@@ -3,7 +3,7 @@ from litex.gen.genlib.cdc import MultiReg
 from litex.soc.interconnect.csr import *
 
 
-class Clocking(Module, AutoCSR):
+class S6Clocking(Module, AutoCSR):
     def __init__(self, pads):
         self._pll_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
@@ -83,3 +83,41 @@ class Clocking(Module, AutoCSR):
                 i_CLR=~locked_async, o_Q=new_pix_rst_n)
             pix_rst_n = new_pix_rst_n
         self.comb += self._cd_pix.rst.eq(~pix_rst_n), self._cd_pix2x.rst.eq(~pix_rst_n)
+
+
+class S7Clocking(Module):
+    def __init__(self, pads):
+        self.locked = Signal()
+        self.clock_domains.cd_pix = ClockDomain()
+        self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
+
+        # # #
+
+        self.clk_input = Signal()
+        self.specials += Instance("IBUFDS", name="hdmi_in_ibufds",
+                                  i_I=pads.clk_p, i_IB=pads.clk_n,
+                                  o_O=self.clk_input)
+
+        clkfbout = Signal()
+        mmcm_locked = Signal()
+        mmcm_clk0 = Signal()
+        mmcm_clk1 = Signal()
+        self.specials += [
+            Instance("MMCME2_ADV",
+                p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
+
+                # VCO
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.7,
+                p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                i_CLKIN1=self.clk_input, i_CLKFBIN=clkfbout, o_CLKFBOUT=clkfbout,
+
+                # pix clk
+                p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
+                # pix5x clk
+                p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1
+            ),
+            Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
+            Instance("BUFIO", i_I=mmcm_clk1, o_O=self.cd_pix5x.clk),
+        ]
+        self.comb += self.cd_pix.rst.eq(ResetSignal()) # FIXME
+        self.comb += self.locked.eq(mmcm_locked)
