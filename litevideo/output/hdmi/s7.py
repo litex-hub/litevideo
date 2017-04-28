@@ -85,32 +85,38 @@ class S7HDMIOutClocking(Module, AutoCSR):
 
         mmcm_locked = Signal()
         mmcm_fb = Signal()
+        mmcm_clk0 = Signal()
+        mmcm_clk1 = Signal()
 
         drp_drdy = Signal()
         drp_do = Signal(16)
 
-        self.specials += Instance("MMCME2_ADV",
-            p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
+        self.specials += [
+            Instance("MMCME2_ADV",
+                p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
 
-            # VCO
-            p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-            p_CLKFBOUT_MULT_F=30.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
-            i_CLKIN1=ClockSignal("clk100"), i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
+                # VCO
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                p_CLKFBOUT_MULT_F=30.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
+                i_CLKIN1=ClockSignal("clk100"), i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
-            # CLK0
-            p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=self.cd_pix.clk,
-            # CLK1
-            p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=self.cd_pix5x.clk,
+                # CLK0
+                p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
+                # CLK1
+                p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1,
 
-            # DRP
-            i_DCLK=ClockSignal(),
-            i_DWE=self.drp_dwe.storage,
-            i_DEN=self.drp_den.re & self.drp_den.r,
-            o_DRDY=drp_drdy,
-            i_DADDR=self.drp_addr.storage,
-            i_DI=self.drp_di.storage,
-            o_DO=drp_do
-        )
+                # DRP
+                i_DCLK=ClockSignal(),
+                i_DWE=self.drp_dwe.storage,
+                i_DEN=self.drp_den.re & self.drp_den.r,
+                o_DRDY=drp_drdy,
+                i_DADDR=self.drp_addr.storage,
+                i_DI=self.drp_di.storage,
+                o_DO=drp_do
+            ),
+            Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
+            Instance("BUFIO", i_I=mmcm_clk1, o_O=self.cd_pix5x.clk)
+        ]
         self.sync += [
             If(drp_drdy, self.drp_do.status.eq(drp_do)),
             self.drp_drdy.status.eq(drp_drdy)
