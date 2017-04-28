@@ -94,9 +94,11 @@ class S7Clocking(Module):
         # # #
 
         self.clk_input = Signal()
+        clk_input_bufg = Signal()
         self.specials += Instance("IBUFDS", name="hdmi_in_ibufds",
                                   i_I=pads.clk_p, i_IB=pads.clk_n,
                                   o_O=self.clk_input)
+        self.specials += Instance("BUFG", i_I=self.clk_input, o_O=clk_input_bufg)
 
         clkfbout = Signal()
         mmcm_locked = Signal()
@@ -109,7 +111,7 @@ class S7Clocking(Module):
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.7,
                 p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=self.clk_input, i_CLKFBIN=clkfbout, o_CLKFBOUT=clkfbout,
+                i_CLKIN1=clk_input_bufg, i_CLKFBIN=clkfbout, o_CLKFBOUT=clkfbout,
 
                 # pix clk
                 p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
