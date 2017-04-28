@@ -209,7 +209,7 @@ class S7Alignment(Module):
 
         # # #
 
-        invalid = Signal()
+        self.invalid = invalid = Signal()
 
         valid_symbols = [
             0b1111111111, 0b0100000000, 0b0111111111, 0b1100000000,
@@ -383,11 +383,9 @@ class S7DataCapture(Module):
         pad_delayed_master = Signal()
         shiftout_master = Signal(2)
 
-        alignment = S7Alignment(self.d)
-        self.submodules += alignment
+        self.submodules.alignment = alignment = S7Alignment(self.d)
 
-        bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
-        self.submodules += bitslip
+        self.submodules.bitslip = bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
         self.comb += bitslip.value.eq(alignment.delay_value)
 
         self.specials += [
@@ -411,7 +409,7 @@ class S7DataCapture(Module):
 
                 i_DDLY=pad_delayed_master,
                 i_CE1=1, i_CE2=1,
-                i_RST=0,
+                i_RST=ResetSignal("pix"),
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_BITSLIP=0,
 
@@ -429,7 +427,7 @@ class S7DataCapture(Module):
 
                 i_DDLY=0,
                 i_CE1=1, i_CE2=1,
-                i_RST=0,
+                i_RST=ResetSignal("pix"),
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_BITSLIP=0,
 
