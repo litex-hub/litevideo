@@ -85,8 +85,11 @@ class S6Clocking(Module, AutoCSR):
         self.comb += self._cd_pix.rst.eq(~pix_rst_n), self._cd_pix2x.rst.eq(~pix_rst_n)
 
 
-class S7Clocking(Module):
+class S7Clocking(Module, AutoCSR):
     def __init__(self, pads):
+        self._mmcm_reset = CSRStorage(reset=1)
+        self._locked = CSRStatus()
+
         self.locked = Signal()
         self.clock_domains.cd_pix = ClockDomain()
         self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
@@ -106,7 +109,7 @@ class S7Clocking(Module):
         mmcm_clk1 = Signal()
         self.specials += [
             Instance("MMCME2_ADV",
-                p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
+                p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked,
 
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.7,
@@ -121,5 +124,14 @@ class S7Clocking(Module):
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
             Instance("BUFIO", i_I=mmcm_clk1, o_O=self.cd_pix5x.clk),
         ]
-        self.comb += self.cd_pix.rst.eq(ResetSignal()) # FIXME
-        self.comb += self.locked.eq(mmcm_locked)
+        MultiReg(mmcm_locked, self.locked, "sys")
+        self.comb += self._locked.status.eq(self.locked)
+
+        # sychronize pix+pix2x reset
+        pix_rst_n = 1
+        for i in range(2):
+            new_pix_rst_n = Signal()
+            self.specials += Instance("FDCE", name="hdmi_in_fdce", i_D=pix_rst_n, i_CE=1, i_C=ClockSignal("pix"),
+                i_CLR=~mmcm_locked, o_Q=new_pix_rst_n)
+            pix_rst_n = new_pix_rst_n
+        self.comb += self.cd_pix.rst.eq(~pix_rst_n)
