@@ -391,7 +391,7 @@ class S7DataCapture(Module):
 
         self.specials += [
             Instance("IDELAYE2",
-                p_DELAY_SRC="DATAIN", p_SIGNAL_PATTERN="DATA",
+                p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
                 p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VAR_LOAD", p_IDELAY_VALUE=0,
 
@@ -401,7 +401,7 @@ class S7DataCapture(Module):
                 i_LDPIPEEN=0, i_INC=0,
                 i_CINVCTRL=0, i_CNTVALUEIN=alignment.delay_value,
 
-                i_DATAIN=pad_se, o_DATAOUT=pad_delayed_master
+                i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_master
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=8, p_DATA_RATE="DDR",
