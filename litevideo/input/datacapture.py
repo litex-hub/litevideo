@@ -1,7 +1,6 @@
 from litex import *
 from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
 from litex.gen.genlib.misc import WaitTimer, BitSlip
-from litex.gen.genlib.cdc import Gearbox
 
 from litex.soc.interconnect.csr import *
 
@@ -382,12 +381,12 @@ class S7DataCapture(Module):
                                   o_O=pad_se)
 
         pad_delayed_master = Signal()
+        shiftout_master = Signal(2)
+
         self.submodules.alignment = alignment = S7Alignment(self.d)
 
         self.submodules.bitslip = bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
         self.comb += bitslip.value.eq(alignment.delay_value)
-
-        self.submodules.gearbox = Gearbox(8, "pixgearbox", 10, "pix")
 
         self.specials += [
             Instance("IDELAYE2",
@@ -404,23 +403,40 @@ class S7DataCapture(Module):
                 i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_master
             ),
             Instance("ISERDESE2",
-                p_DATA_WIDTH=8, p_DATA_RATE="DDR",
+                p_DATA_WIDTH=10, p_DATA_RATE="DDR",
                 p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
                 p_NUM_CE=1, p_IOBDELAY="IFD",
 
                 i_DDLY=pad_delayed_master,
                 i_CE1=1, i_CE2=1,
-                i_RST=ResetSignal("pixgearbox"),
-                i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pixgearbox"),
+                i_RST=ResetSignal("pix"),
+                i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_BITSLIP=0,
 
-                o_Q1=self.gearbox.i[7], o_Q2=self.gearbox.i[6],
-                o_Q3=self.gearbox.i[5], o_Q4=self.gearbox.i[4],
-                o_Q5=self.gearbox.i[3], o_Q6=self.gearbox.i[2],
-                o_Q7=self.gearbox.i[1], o_Q8=self.gearbox.i[0],
+                o_Q1=bitslip.i[9], o_Q2=bitslip.i[8],
+                o_Q3=bitslip.i[7], o_Q4=bitslip.i[6],
+                o_Q5=bitslip.i[5], o_Q6=bitslip.i[4],
+                o_Q7=bitslip.i[3], o_Q8=bitslip.i[2],
+
+                o_SHIFTOUT1=shiftout_master[0], o_SHIFTOUT2=shiftout_master[1],
+            ),
+            Instance("ISERDESE2",
+                p_DATA_WIDTH=10, p_DATA_RATE="DDR",
+                p_SERDES_MODE="SLAVE", p_INTERFACE_TYPE="NETWORKING",
+                p_NUM_CE=1, p_IOBDELAY="IFD",
+
+                i_DDLY=0,
+                i_CE1=1, i_CE2=1,
+                i_RST=ResetSignal("pix"),
+                i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
+                i_BITSLIP=0,
+
+                o_SHIFTIN1=shiftout_master[0], o_SHIFTIN2=shiftout_master[1],
+
+                #o_Q1=, o_Q2=,
+                o_Q3=bitslip.i[1], o_Q4=bitslip.i[0],
+                #o_Q5=, o_Q6=,
+                #o_Q7=, o_Q8=
             ),
         ]
-        self.comb += [
-            self.bitslip.i.eq(self.gearbox.o),
-            self.d.eq(bitslip.o)
-        ]
+        self.comb += self.d.eq(bitslip.o)

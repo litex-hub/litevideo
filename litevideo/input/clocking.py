@@ -92,7 +92,6 @@ class S7Clocking(Module, AutoCSR):
 
         self.locked = Signal()
         self.clock_domains.cd_pix = ClockDomain()
-        self.clock_domains.cd_pixgearbox = ClockDomain()
         self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
 
         # # #
@@ -108,36 +107,31 @@ class S7Clocking(Module, AutoCSR):
         mmcm_locked = Signal()
         mmcm_clk0 = Signal()
         mmcm_clk1 = Signal()
-        mmcm_clk2 = Signal()
         self.specials += [
             Instance("MMCME2_ADV",
                 p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked,
 
                 # VCO
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=13.4,
-                p_CLKFBOUT_MULT_F=10.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.7,
+                p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=clk_input_bufg, i_CLKFBIN=clkfbout, o_CLKFBOUT=clkfbout,
 
                 # pix clk
-                p_CLKOUT0_DIVIDE_F=10, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
-                # pixgearbox clk
-                p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1,
+                p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
                 # pix5x clk
-                p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2,
+                p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
-            Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pixgearbox.clk),
-            Instance("BUFIO",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
+            Instance("BUFIO", i_I=mmcm_clk1, o_O=self.cd_pix5x.clk),
         ]
         MultiReg(mmcm_locked, self.locked, "sys")
         self.comb += self._locked.status.eq(self.locked)
 
-
-        # sychronize pix+pixgearbox reset
+        # sychronize pix+pix2x reset
         pix_rst_n = 1
         for i in range(2):
             new_pix_rst_n = Signal()
             self.specials += Instance("FDCE", name="hdmi_in_fdce", i_D=pix_rst_n, i_CE=1, i_C=ClockSignal("pix"),
                 i_CLR=~mmcm_locked, o_Q=new_pix_rst_n)
             pix_rst_n = new_pix_rst_n
-        self.comb += self.cd_pix.rst.eq(~pix_rst_n), self.cd_pixgearbox.rst.eq(~pix_rst_n)
+        self.comb += self.cd_pix.rst.eq(~pix_rst_n)
