@@ -1,6 +1,7 @@
 from litex import *
 from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
 from litex.gen.genlib.misc import WaitTimer, BitSlip
+from litex.gen.genlib.cdc import MultiReg, Gearbox
 
 from litex.soc.interconnect.csr import *
 
@@ -200,9 +201,10 @@ class S6DataCapture(Module, AutoCSR):
         self.sync.pix += self.d.eq(dsr)
 
 
-# TODO: to be removed when we'll have the phase detector working
+# TODO: remove this when using phase detector
 class S7Alignment(Module):
-    def __init__(self, symbol):
+    def __init__(self):
+        self.i = Signal(10)
         self.delay_value = Signal(5)
         self.delay_ce = Signal()
         self.bitslip_value = Signal(4)
@@ -331,7 +333,7 @@ class S7Alignment(Module):
 
         self.comb += invalid.eq(1)
         for s in valid_symbols:
-            self.comb += If(symbol == s, invalid.eq(0))
+            self.comb += If(self.i == s, invalid.eq(0))
 
         count = Signal(20)
         signal_quality = Signal(28)
@@ -352,7 +354,7 @@ class S7Alignment(Module):
                 If(signal_quality[24:28] == 0xf,
                     holdoff.eq(2**10-1),
                     If(self.delay_value == 31,
-                        self.bitslip_value.eq(self.bitslip_value+1)
+                        self.bitslip_value.eq(self.bitslip_value + 1)
                     ),
                     self.delay_value.eq(self.delay_value+1),
                     self.delay_ce.eq(1),
@@ -376,67 +378,57 @@ class S7DataCapture(Module):
 
         # IO
         pad_se = Signal()
-        self.specials += Instance("IBUFDS",
-                                  i_I=pad_p, i_IB=pad_n,
-                                  o_O=pad_se)
-
-        pad_delayed_master = Signal()
-        shiftout_master = Signal(2)
-
-        self.submodules.alignment = alignment = S7Alignment(self.d)
-
-        self.submodules.bitslip = bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
-        self.comb += bitslip.value.eq(alignment.delay_value)
-
+        pad_delayed = Signal()
+        iserdese2_o = Signal(8)
+        idelaye2_delay_ce = Signal()
+        idelaye2_delay_value = Signal(5)
         self.specials += [
+            Instance("IBUFDS",
+                i_I=pad_p, i_IB=pad_n, o_O=pad_se
+            ),
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
-                p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE", p_REFCLK_FREQUENCY=200.0,
-                p_PIPE_SEL="FALSE", p_IDELAY_TYPE="VAR_LOAD", p_IDELAY_VALUE=0,
+                p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE",
+                p_REFCLK_FREQUENCY=200.0, p_PIPE_SEL="FALSE",
+                p_IDELAY_TYPE="VAR_LOAD", p_IDELAY_VALUE=0,
 
                 i_C=ClockSignal("pix"),
                 i_LD=1,
-                i_CE=alignment.delay_ce,
+                i_CE=idelaye2_delay_ce,
                 i_LDPIPEEN=0, i_INC=0,
-                i_CINVCTRL=0, i_CNTVALUEIN=alignment.delay_value,
+                i_CINVCTRL=0, i_CNTVALUEIN=idelaye2_delay_value,
 
-                i_IDATAIN=pad_se, o_DATAOUT=pad_delayed_master
+                i_IDATAIN=pad_se, o_DATAOUT=pad_delayed
             ),
             Instance("ISERDESE2",
-                p_DATA_WIDTH=10, p_DATA_RATE="DDR",
+                p_DATA_WIDTH=8, p_DATA_RATE="DDR",
                 p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
                 p_NUM_CE=1, p_IOBDELAY="IFD",
 
-                i_DDLY=pad_delayed_master,
+                i_DDLY=pad_delayed,
                 i_CE1=1, i_CE2=1,
                 i_RST=ResetSignal("pix"),
-                i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
+                i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"),
+                i_CLKDIV=ClockSignal("pix1p25x"),
                 i_BITSLIP=0,
 
-                o_Q1=bitslip.i[9], o_Q2=bitslip.i[8],
-                o_Q3=bitslip.i[7], o_Q4=bitslip.i[6],
-                o_Q5=bitslip.i[5], o_Q6=bitslip.i[4],
-                o_Q7=bitslip.i[3], o_Q8=bitslip.i[2],
-
-                o_SHIFTOUT1=shiftout_master[0], o_SHIFTOUT2=shiftout_master[1],
-            ),
-            Instance("ISERDESE2",
-                p_DATA_WIDTH=10, p_DATA_RATE="DDR",
-                p_SERDES_MODE="SLAVE", p_INTERFACE_TYPE="NETWORKING",
-                p_NUM_CE=1, p_IOBDELAY="IFD",
-
-                i_DDLY=0,
-                i_CE1=1, i_CE2=1,
-                i_RST=ResetSignal("pix"),
-                i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
-                i_BITSLIP=0,
-
-                o_SHIFTIN1=shiftout_master[0], o_SHIFTIN2=shiftout_master[1],
-
-                #o_Q1=, o_Q2=,
-                o_Q3=bitslip.i[1], o_Q4=bitslip.i[0],
-                #o_Q5=, o_Q6=,
-                #o_Q7=, o_Q8=
-            ),
+                o_Q1=iserdese2_o[7], o_Q2=iserdese2_o[6],
+                o_Q3=iserdese2_o[5], o_Q4=iserdese2_o[4],
+                o_Q5=iserdese2_o[3], o_Q6=iserdese2_o[2],
+                o_Q7=iserdese2_o[1], o_Q8=iserdese2_o[0]
+            )
         ]
-        self.comb += self.d.eq(bitslip.o)
+
+        self.submodules.gearbox = Gearbox(8, "pix1p25x", 10, "pix")
+        self.submodules.bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
+        self.submodules.alignment = S7Alignment()
+        self.comb += [
+            self.gearbox.i.eq(iserdese2_o),
+            self.bitslip.i.eq(self.gearbox.o),
+            self.d.eq(self.bitslip.o),
+            # TODO: remove this when using phase detector
+            self.alignment.i.eq(self.d),
+            idelaye2_delay_ce.eq(self.alignment.delay_ce),
+            idelaye2_delay_value.eq(self.alignment.delay_value),
+            self.bitslip.value.eq(self.alignment.bitslip_value)
+        ]
