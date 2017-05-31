@@ -261,7 +261,7 @@ class S7DataCapture(Module, AutoCSR):
 
         # # #
 
-        # use 2 serdes for phase detection: 1 master/ 1 slave
+        # use 2 serdes for phase detection: master & slave
         serdes_m_i_nodelay = Signal()
         serdes_s_i_nodelay = Signal()
         self.specials += [
@@ -277,9 +277,7 @@ class S7DataCapture(Module, AutoCSR):
         delay_ce = Signal()
         delay_rst = Signal()
 
-        self.submodules.phase_detector = ClockDomainsRenamer("pix1p25x")(
-            S7PhaseDetector())
-
+        # master serdes
         serdes_m_i_delayed = Signal()
         serdes_m_q = Signal(8)
         serdes_m_idelay_value = int(1/(4*(742.5e6))/78e-12) # 1/4 bit period
@@ -315,8 +313,8 @@ class S7DataCapture(Module, AutoCSR):
                 o_Q2=serdes_m_q[6], o_Q1=serdes_m_q[7]
             ),
         ]
-        self.comb += self.phase_detector.mdata.eq(serdes_m_q)
 
+        # slave serdes
         serdes_s_i_delayed = Signal()
         serdes_s_q = Signal(8)
         serdes_s_idelay_value = int(1/(2*(742.5e6))/78e-12) # 1/2 bit period
@@ -352,8 +350,8 @@ class S7DataCapture(Module, AutoCSR):
                 o_Q2=serdes_s_q[6], o_Q1=serdes_s_q[7]
             ),
         ]
-        self.comb += self.phase_detector.sdata.eq(~serdes_s_q)
 
+        # datapath
         self.submodules.gearbox = Gearbox(8, "pix1p25x", 10, "pix")
         self.submodules.bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
         self.comb += [
@@ -362,7 +360,15 @@ class S7DataCapture(Module, AutoCSR):
             self.d.eq(self.bitslip.o)
         ]
 
-        # Phase error accumulator
+        # phase detector
+        self.submodules.phase_detector = ClockDomainsRenamer("pix1p25x")(
+            S7PhaseDetector())
+        self.comb += [
+            self.phase_detector.mdata.eq(serdes_m_q),
+            self.phase_detector.sdata.eq(~serdes_s_q) # ~ since inverted at ibufds
+        ]
+
+        # phase error accumulator
         lateness = Signal(ntbits, reset=2**(ntbits - 1))
         too_late = Signal()
         too_early = Signal()
@@ -380,7 +386,7 @@ class S7DataCapture(Module, AutoCSR):
             )
         ]
 
-        # Delay control
+        # delay control
         self.submodules.do_delay_rst = PulseSynchronizer("sys", "pix1p25x")
         self.submodules.do_delay_inc = PulseSynchronizer("sys", "pix1p25x")
         self.submodules.do_delay_dec = PulseSynchronizer("sys", "pix1p25x")
@@ -396,7 +402,7 @@ class S7DataCapture(Module, AutoCSR):
             self.do_delay_dec.i.eq(self._dly_ctl.re & self._dly_ctl.r[2])
         ]
 
-        # Phase detector control
+        # phase detector control
         self.specials += MultiReg(Cat(too_late, too_early), self._phase.status)
         self.submodules.do_reset_lateness = PulseSynchronizer("sys", "pix1p25x")
         self.comb += [
