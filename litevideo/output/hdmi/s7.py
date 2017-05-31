@@ -115,7 +115,7 @@ class S7HDMIOutClocking(Module, AutoCSR):
                 o_DO=drp_do
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
-            Instance("BUFIO", i_I=mmcm_clk1, o_O=self.cd_pix5x.clk)
+            Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix5x.clk)
         ]
         self.sync += [
             If(drp_drdy, self.drp_do.status.eq(drp_do)),

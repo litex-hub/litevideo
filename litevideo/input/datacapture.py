@@ -201,234 +201,205 @@ class S6DataCapture(Module, AutoCSR):
         self.sync.pix += self.d.eq(dsr)
 
 
-# TODO: remove this when using phase detector
-class S7Alignment(Module):
+class S7PhaseDetector(Module, AutoCSR):
     def __init__(self):
-        self.i = Signal(10)
-        self.delay_value = Signal(5)
-        self.delay_ce = Signal()
-        self.bitslip_value = Signal(4)
+        self.mdata = Signal(8)
+        self.sdata = Signal(8)
+
+        self.inc = Signal()
+        self.dec = Signal()
 
         # # #
 
-        self.invalid = invalid = Signal()
+        # ideal sampling (middle of the eye):
+        #  _____       _____       _____
+        # |     |_____|     |_____|     |_____|   data
+        #    +     +     +     +     +     +      master sampling
+        #       -     -     -     -     -     -   slave sampling (90°/bit period)
+        # Since taps are fixed length delays, this ideal case is not possible
+        # and we will fall in the 2 following possible cases:
+        #
+        # 1) too late sampling (idelay needs to be decremented):
+        #  _____       _____       _____
+        # |     |_____|     |_____|     |_____|   data
+        #     +     +     +     +     +     +     master sampling
+        #        -     -     -     -     -     -  slave sampling (90°/bit period)
+        # on mdata transition, mdata != sdata
+        #
+        #
+        # 2) too early sampling (idelay needs to be incremented):
+        #  _____       _____       _____
+        # |     |_____|     |_____|     |_____|   data
+        #   +     +     +     +     +     +       master sampling
+        #      -     -     -     -     -     -    slave sampling (90°/bit period)
+        # on mdata transition, mdata == sdata
 
-        valid_symbols = [
-            0b1111111111, 0b0100000000, 0b0111111111, 0b1100000000,
-            0b0111111110, 0b1100000001, 0b1111111110, 0b0100000001,
-            0b0111111100, 0b1100000011, 0b1111111100, 0b0100000011,
-            0b1111111101, 0b0100000010, 0b0111111101, 0b1100000010,
-            0b0111111000, 0b1100000111, 0b1111111000, 0b0100000111,
-            0b1111111001, 0b0100000110, 0b0111111001, 0b1100000110,
-            0b1111111011, 0b0100000100, 0b0111111011, 0b1100000100,
-            0b0111111010, 0b1100000101, 0b1111111010, 0b0100000101,
-            0b0111110000, 0b0100001111, 0b1111110001, 0b0100001110,
-            0b0111110001, 0b1100001110, 0b1111110011, 0b0100001100,
-            0b0111110011, 0b1100001100, 0b0111110010, 0b1100001101,
-            0b1111110010, 0b0100001101, 0b1111110111, 0b0100001000,
-            0b0111110111, 0b1100001000, 0b0111110110, 0b1100001001,
-            0b1111110110, 0b0100001001, 0b0111110100, 0b1100001011,
-            0b1111110100, 0b0100001011, 0b1001011111, 0b0010100000,
-            0b0001011111, 0b1010100000, 0b1100011111, 0b0111100000,
-            0b0100011111, 0b1111100000, 0b0100011110, 0b0111100001,
-            0b1111100011, 0b0100011100, 0b0111100011, 0b1100011100,
-            0b0111100010, 0b0100011101, 0b1111100111, 0b0100011000,
-            0b0111100111, 0b1100011000, 0b0111100110, 0b1100011001,
-            0b1111100110, 0b0100011001, 0b0111100100, 0b0100011011,
-            0b1001001111, 0b0010110000, 0b0001001111, 0b1010110000,
-            0b1111101111, 0b0100010000, 0b0111101111, 0b1100010000,
-            0b0111101110, 0b1100010001, 0b1111101110, 0b0100010001,
-            0b0111101100, 0b1100010011, 0b1111101100, 0b0100010011,
-            0b1001000111, 0b1010111000, 0b0111101000, 0b0100010111,
-            0b0010111100, 0b1001000011, 0b1010111100, 0b0001000011,
-            0b0010111110, 0b1001000001, 0b1010111110, 0b0001000001,
-            0b1010111111, 0b0001000000, 0b0010111111, 0b1001000000,
-            0b1100111111, 0b0111000000, 0b0100111111, 0b1111000000,
-            0b0100111110, 0b1111000001, 0b1100111110, 0b0111000001,
-            0b0100111100, 0b0111000011, 0b1100111101, 0b0111000010,
-            0b0100111101, 0b1111000010, 0b1111000111, 0b0100111000,
-            0b0111000111, 0b1100111000, 0b0111000110, 0b0100111001,
-            0b1100111011, 0b0111000100, 0b0100111011, 0b1111000100,
-            0b1001101111, 0b0010010000, 0b0001101111, 0b1010010000,
-            0b1111001111, 0b0100110000, 0b0111001111, 0b1100110000,
-            0b0111001110, 0b1100110001, 0b1111001110, 0b0100110001,
-            0b0111001100, 0b0100110011, 0b1001100111, 0b0010011000,
-            0b0001100111, 0b1010011000, 0b1100110111, 0b0111001000,
-            0b0100110111, 0b1111001000, 0b1001100011, 0b1010011100,
-            0b0010011110, 0b1001100001, 0b1010011110, 0b0001100001,
-            0b1010011111, 0b0001100000, 0b0010011111, 0b1001100000,
-            0b1111011111, 0b0100100000, 0b0111011111, 0b1100100000,
-            0b0111011110, 0b1100100001, 0b1111011110, 0b0100100001,
-            0b0111011100, 0b1100100011, 0b1111011100, 0b0100100011,
-            0b1001110111, 0b0010001000, 0b0001110111, 0b1010001000,
-            0b0111011000, 0b0100100111, 0b1001110011, 0b0010001100,
-            0b0001110011, 0b1010001100, 0b1001110001, 0b1010001110,
-            0b1010001111, 0b0001110000, 0b0010001111, 0b1001110000,
-            0b1100101111, 0b0111010000, 0b0100101111, 0b1111010000,
-            0b1001111011, 0b0010000100, 0b0001111011, 0b1010000100,
-            0b1001111001, 0b0010000110, 0b0001111001, 0b1010000110,
-            0b1010000111, 0b1001111000, 0b1001111101, 0b0010000010,
-            0b0001111101, 0b1010000010, 0b0001111100, 0b1010000011,
-            0b1001111100, 0b0010000011, 0b0001111110, 0b1010000001,
-            0b1001111110, 0b0010000001, 0b1001111111, 0b0010000000,
-            0b0001111111, 0b1010000000, 0b1101111111, 0b0110000000,
-            0b0101111111, 0b1110000000, 0b0101111110, 0b1110000001,
-            0b1101111110, 0b0110000001, 0b0101111100, 0b1110000011,
-            0b1101111100, 0b0110000011, 0b1101111101, 0b0110000010,
-            0b0101111101, 0b1110000010, 0b0101111000, 0b0110000111,
-            0b1101111001, 0b0110000110, 0b0101111001, 0b1110000110,
-            0b1101111011, 0b0110000100, 0b0101111011, 0b1110000100,
-            0b1000101111, 0b0011010000, 0b0000101111, 0b1011010000,
-            0b1110001111, 0b0101110000, 0b0110001111, 0b1101110000,
-            0b0110001110, 0b0101110001, 0b1101110011, 0b0110001100,
-            0b0101110011, 0b1110001100, 0b1000100111, 0b1011011000,
-            0b1101110111, 0b0110001000, 0b0101110111, 0b1110001000,
-            0b0011011100, 0b1000100011, 0b1011011100, 0b0000100011,
-            0b0011011110, 0b1000100001, 0b1011011110, 0b0000100001,
-            0b1011011111, 0b0000100000, 0b0011011111, 0b1000100000,
-            0b1110011111, 0b0101100000, 0b0110011111, 0b1101100000,
-            0b0110011110, 0b1101100001, 0b1110011110, 0b0101100001,
-            0b0110011100, 0b0101100011, 0b1000110111, 0b0011001000,
-            0b0000110111, 0b1011001000, 0b1101100111, 0b0110011000,
-            0b0101100111, 0b1110011000, 0b1000110011, 0b1011001100,
-            0b0011001110, 0b1000110001, 0b1011001110, 0b0000110001,
-            0b1011001111, 0b0000110000, 0b0011001111, 0b1000110000,
-            0b1101101111, 0b0110010000, 0b0101101111, 0b1110010000,
-            0b1000111011, 0b0011000100, 0b0000111011, 0b1011000100,
-            0b1000111001, 0b1011000110, 0b1011000111, 0b0000111000,
-            0b0011000111, 0b1000111000, 0b1000111101, 0b0011000010,
-            0b0000111101, 0b1011000010, 0b1011000011, 0b1000111100,
-            0b0000111110, 0b1011000001, 0b1000111110, 0b0011000001,
-            0b1000111111, 0b0011000000, 0b0000111111, 0b1011000000,
-            0b1110111111, 0b0101000000, 0b0110111111, 0b1101000000,
-            0b0110111110, 0b1101000001, 0b1110111110, 0b0101000001,
-            0b0110111100, 0b1101000011, 0b1110111100, 0b0101000011,
-            0b1000010111, 0b1011101000, 0b0110111000, 0b0101000111,
-            0b0011101100, 0b1000010011, 0b1011101100, 0b0000010011,
-            0b0011101110, 0b1000010001, 0b1011101110, 0b0000010001,
-            0b1011101111, 0b0000010000, 0b0011101111, 0b1000010000,
-            0b1101001111, 0b0110110000, 0b0101001111, 0b1110110000,
-            0b1000011011, 0b1011100100, 0b0011100110, 0b1000011001,
-            0b1011100110, 0b0000011001, 0b1011100111, 0b0000011000,
-            0b0011100111, 0b1000011000, 0b1000011101, 0b1011100010,
-            0b1011100011, 0b0000011100, 0b0011100011, 0b1000011100,
-            0b1011100001, 0b1000011110, 0b1000011111, 0b0011100000,
-            0b0000011111, 0b1011100000, 0b1101011111, 0b0110100000,
-            0b0101011111, 0b1110100000, 0b0011110100, 0b1000001011,
-            0b1011110100, 0b0000001011, 0b0011110110, 0b1000001001,
-            0b1011110110, 0b0000001001, 0b1011110111, 0b0000001000,
-            0b0011110111, 0b1000001000, 0b0011110010, 0b1000001101,
-            0b1011110010, 0b0000001101, 0b1011110011, 0b0000001100,
-            0b0011110011, 0b1000001100, 0b1011110001, 0b0000001110,
-            0b0011110001, 0b1000001110, 0b1000001111, 0b1011110000,
-            0b0011111010, 0b1000000101, 0b1011111010, 0b0000000101,
-            0b1011111011, 0b0000000100, 0b0011111011, 0b1000000100,
-            0b1011111001, 0b0000000110, 0b0011111001, 0b1000000110,
-            0b0011111000, 0b1000000111, 0b1011111000, 0b0000000111,
-            0b1011111101, 0b0000000010, 0b0011111101, 0b1000000010,
-            0b0011111100, 0b1000000011, 0b1011111100, 0b0000000011,
-            0b0011111110, 0b1000000001, 0b1011111110, 0b0000000001,
-            0b1011111111, 0b0000000000, 0b0011111111, 0b1000000000,
-            0b0010101011, 0b0101010100, 0b1010101011, 0b1101010100]
+        transition = Signal()
+        inc = Signal()
+        dec = Signal()
 
-        self.comb += invalid.eq(1)
-        for s in valid_symbols:
-            self.comb += If(self.i == s, invalid.eq(0))
+        # find transition
+        mdata_d = Signal(8)
+        self.sync.pix1p25x += mdata_d.eq(self.mdata)
+        self.comb += transition.eq(mdata_d != self.mdata)
 
-        count = Signal(20)
-        signal_quality = Signal(28)
-        holdoff = Signal(10)
-        error_seen = Signal()
 
-        self.sync.pix += [
-            error_seen.eq(0),
-            If(holdoff == 0,
-                If(invalid,
-                    error_seen.eq(1)
-                )
-            ).Else(
-                holdoff.eq(holdoff-1)
-            ),
-            self.delay_ce.eq(0),
-            If(error_seen,
-                If(signal_quality[24:28] == 0xf,
-                    holdoff.eq(2**10-1),
-                    If(self.delay_value == 31,
-                        self.bitslip_value.eq(self.bitslip_value + 1)
-                    ),
-                    self.delay_value.eq(self.delay_value+1),
-                    self.delay_ce.eq(1),
-                    signal_quality[24:28].eq(0x4)
-                ).Else(
-                    signal_quality.eq(signal_quality + 0x100000)
-                )
-            ).Else(
-                If(signal_quality[24:28] != 0,
-                    signal_quality.eq(signal_quality-1)
-                )
-            )
+        # find what to do
+        self.comb += [
+            self.inc.eq(transition & (self.mdata == self.sdata)),
+            self.dec.eq(transition & (self.mdata != self.sdata))
         ]
 
 
-class S7DataCapture(Module):
-    def __init__(self, pad_p, pad_n):
+class S7DataCapture(Module, AutoCSR):
+    def __init__(self, pad_p, pad_n, ntbits=8):
         self.d = Signal(10)
+
+        self._dly_ctl = CSR(3)
+        self._phase = CSRStatus(2)
+        self._phase_reset = CSR()
 
         # # #
 
-        # IO
-        pad_se = Signal()
-        pad_delayed = Signal()
-        iserdese2_o = Signal(8)
-        idelaye2_delay_ce = Signal()
-        idelaye2_delay_value = Signal(5)
+        # use 2 serdes for phase detection: 1 master/ 1 slave
+        serdes_m_i_nodelay = Signal()
+        serdes_s_i_nodelay = Signal()
         self.specials += [
-            Instance("IBUFDS",
-                i_I=pad_p, i_IB=pad_n, o_O=pad_se
-            ),
+            Instance("IBUFDS_DIFF_OUT",
+                i_I=pad_p,
+                i_IB=pad_n,
+                o_O=serdes_m_i_nodelay,
+                o_OB=serdes_s_i_nodelay,
+            )
+        ]
+
+        delay_inc = Signal()
+        delay_ce = Signal()
+        delay_rst = Signal()
+
+        self.submodules.phase_detector = ClockDomainsRenamer("pix1p25x")(
+            S7PhaseDetector())
+
+        serdes_m_i_delayed = Signal()
+        serdes_m_q = Signal(8)
+        serdes_m_idelay_value = int(1/(4*(742.5e6))/78e-12) # 1/4 bit period
+        assert serdes_m_idelay_value < 32
+        self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE",
                 p_REFCLK_FREQUENCY=200.0, p_PIPE_SEL="FALSE",
-                p_IDELAY_TYPE="VAR_LOAD", p_IDELAY_VALUE=0,
+                p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_m_idelay_value,
 
-                i_C=ClockSignal("pix"),
-                i_LD=1,
-                i_CE=idelaye2_delay_ce,
-                i_LDPIPEEN=0, i_INC=0,
-                i_CINVCTRL=0, i_CNTVALUEIN=idelaye2_delay_value,
+                i_C=ClockSignal("pix1p25x"),
+                i_LD=delay_rst,
+                i_CE=delay_ce,
+                i_LDPIPEEN=0, i_INC=delay_inc,
 
-                i_IDATAIN=pad_se, o_DATAOUT=pad_delayed
+                i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=8, p_DATA_RATE="DDR",
                 p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
                 p_NUM_CE=1, p_IOBDELAY="IFD",
 
-                i_DDLY=pad_delayed,
-                i_CE1=1, i_CE2=1,
-                i_RST=ResetSignal("pix"),
+                i_DDLY=serdes_m_i_delayed,
+                i_CE1=1,
+                i_RST=ResetSignal("pix1p25x"),
                 i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"),
                 i_CLKDIV=ClockSignal("pix1p25x"),
                 i_BITSLIP=0,
-
-                o_Q1=iserdese2_o[7], o_Q2=iserdese2_o[6],
-                o_Q3=iserdese2_o[5], o_Q4=iserdese2_o[4],
-                o_Q5=iserdese2_o[3], o_Q6=iserdese2_o[2],
-                o_Q7=iserdese2_o[1], o_Q8=iserdese2_o[0]
-            )
+                o_Q8=serdes_m_q[0], o_Q7=serdes_m_q[1],
+                o_Q6=serdes_m_q[2], o_Q5=serdes_m_q[3],
+                o_Q4=serdes_m_q[4], o_Q3=serdes_m_q[5],
+                o_Q2=serdes_m_q[6], o_Q1=serdes_m_q[7]
+            ),
         ]
+        self.comb += self.phase_detector.mdata.eq(serdes_m_q)
+
+        serdes_s_i_delayed = Signal()
+        serdes_s_q = Signal(8)
+        serdes_s_idelay_value = int(1/(2*(742.5e6))/78e-12) # 1/2 bit period
+        assert serdes_s_idelay_value < 32
+        self.specials += [
+            Instance("IDELAYE2",
+                p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
+                p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE",
+                p_REFCLK_FREQUENCY=200.0, p_PIPE_SEL="FALSE",
+                p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_s_idelay_value,
+
+                i_C=ClockSignal("pix1p25x"),
+                i_LD=delay_rst,
+                i_CE=delay_ce,
+                i_LDPIPEEN=0, i_INC=delay_inc,
+
+                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
+            ),
+            Instance("ISERDESE2",
+                p_DATA_WIDTH=8, p_DATA_RATE="DDR",
+                p_SERDES_MODE="MASTER", p_INTERFACE_TYPE="NETWORKING",
+                p_NUM_CE=1, p_IOBDELAY="IFD",
+
+                i_DDLY=serdes_s_i_delayed,
+                i_CE1=1,
+                i_RST=ResetSignal("pix1p25x"),
+                i_CLK=ClockSignal("pix5x"), i_CLKB=~ClockSignal("pix5x"),
+                i_CLKDIV=ClockSignal("pix1p25x"),
+                i_BITSLIP=0,
+                o_Q8=serdes_s_q[0], o_Q7=serdes_s_q[1],
+                o_Q6=serdes_s_q[2], o_Q5=serdes_s_q[3],
+                o_Q4=serdes_s_q[4], o_Q3=serdes_s_q[5],
+                o_Q2=serdes_s_q[6], o_Q1=serdes_s_q[7]
+            ),
+        ]
+        self.comb += self.phase_detector.sdata.eq(~serdes_s_q)
 
         self.submodules.gearbox = Gearbox(8, "pix1p25x", 10, "pix")
         self.submodules.bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
-        self.submodules.alignment = S7Alignment()
         self.comb += [
-            self.gearbox.i.eq(iserdese2_o),
+            self.gearbox.i.eq(serdes_m_q),
             self.bitslip.i.eq(self.gearbox.o),
-            self.d.eq(self.bitslip.o),
-            # TODO: remove this when using phase detector
-            self.alignment.i.eq(self.d),
-            idelaye2_delay_ce.eq(self.alignment.delay_ce),
-            idelaye2_delay_value.eq(self.alignment.delay_value),
-            self.bitslip.value.eq(self.alignment.bitslip_value)
+            self.d.eq(self.bitslip.o)
+        ]
+
+        # Phase error accumulator
+        lateness = Signal(ntbits, reset=2**(ntbits - 1))
+        too_late = Signal()
+        too_early = Signal()
+        reset_lateness = Signal()
+        self.comb += [
+            too_late.eq(lateness == (2**ntbits - 1)),
+            too_early.eq(lateness == 0)
+        ]
+        self.sync.pix1p25x += [
+            If(reset_lateness,
+                lateness.eq(2**(ntbits - 1))
+            ).Elif(~too_late & ~too_early,
+                If(self.phase_detector.dec, lateness.eq(lateness - 1)),
+                If(self.phase_detector.inc, lateness.eq(lateness + 1))
+            )
+        ]
+
+        # Delay control
+        self.submodules.do_delay_rst = PulseSynchronizer("sys", "pix1p25x")
+        self.submodules.do_delay_inc = PulseSynchronizer("sys", "pix1p25x")
+        self.submodules.do_delay_dec = PulseSynchronizer("sys", "pix1p25x")
+        self.comb += [
+            delay_rst.eq(self.do_delay_rst.o),
+            delay_inc.eq(self.do_delay_inc.o),
+            delay_ce.eq(self.do_delay_inc.o | self.do_delay_dec.o),
+        ]
+
+        self.comb += [
+            self.do_delay_rst.i.eq(self._dly_ctl.re & self._dly_ctl.r[0]),
+            self.do_delay_inc.i.eq(self._dly_ctl.re & self._dly_ctl.r[1]),
+            self.do_delay_dec.i.eq(self._dly_ctl.re & self._dly_ctl.r[2])
+        ]
+
+        # Phase detector control
+        self.specials += MultiReg(Cat(too_late, too_early), self._phase.status)
+        self.submodules.do_reset_lateness = PulseSynchronizer("sys", "pix1p25x")
+        self.comb += [
+            reset_lateness.eq(self.do_reset_lateness.o),
+            self.do_reset_lateness.i.eq(self._phase_reset.re)
         ]

@@ -100,9 +100,11 @@ class S7Clocking(Module, AutoCSR):
         # # #
 
         self.clk_input = Signal()
+        clk_input_bufg = Signal()
         self.specials += Instance("IBUFDS", name="hdmi_in_ibufds",
                                   i_I=pads.clk_p, i_IB=pads.clk_n,
                                   o_O=self.clk_input)
+        self.specials += Instance("BUFG", i_I=self.clk_input, o_O=clk_input_bufg)
 
         clkfbout = Signal()
         mmcm_locked = Signal()
@@ -127,7 +129,7 @@ class S7Clocking(Module, AutoCSR):
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
             Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
-            Instance("BUFIO",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
+            Instance("BUFG",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
         ]
         MultiReg(mmcm_locked, self.locked, "sys")
         self.comb += self._locked.status.eq(self.locked)
