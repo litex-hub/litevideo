@@ -77,14 +77,10 @@ class S6Clocking(Module, AutoCSR):
         ]
         self.comb += self._locked.status.eq(self.locked)
 
-        # sychronize pix+pix2x reset
-        pix_rst_n = 1
-        for i in range(2):
-            new_pix_rst_n = Signal()
-            self.specials += Instance("FDCE", name="hdmi_in_fdce", i_D=pix_rst_n, i_CE=1, i_C=ClockSignal("pix"),
-                i_CLR=~locked_async, o_Q=new_pix_rst_n)
-            pix_rst_n = new_pix_rst_n
-        self.comb += self._cd_pix.rst.eq(~pix_rst_n), self._cd_pix2x.rst.eq(~pix_rst_n)
+        self.specials += [
+            AsyncResetSynchronizer(self.cd_pix, ~locked_async),
+            AsyncResetSynchronizer(self.cd_pix2x, ~locked_async),
+        ]
 
 
 class S7Clocking(Module, AutoCSR):
@@ -101,12 +97,14 @@ class S7Clocking(Module, AutoCSR):
 
         self.clk_input = Signal()
         clk_input_bufg = Signal()
-        self.specials += Instance("IBUFDS", name="hdmi_in_ibufds",
-                                  i_I=pads.clk_p, i_IB=pads.clk_n,
-                                  o_O=self.clk_input)
-        self.specials += Instance("BUFG", i_I=self.clk_input, o_O=clk_input_bufg)
+        self.specials += [
+            Instance("IBUFDS", name="hdmi_in_ibufds",
+                i_I=pads.clk_p, i_IB=pads.clk_n,
+                o_O=self.clk_input),
+            Instance("BUFG", i_I=self.clk_input, o_O=clk_input_bufg)
+        ]
 
-        clkfbout = Signal()
+        mmcm_fb = Signal()
         mmcm_locked = Signal()
         mmcm_clk0 = Signal()
         mmcm_clk1 = Signal()
@@ -118,7 +116,7 @@ class S7Clocking(Module, AutoCSR):
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=13.4, # 720p60 / 74.25Mhz pixel clock
                 p_CLKFBOUT_MULT_F=10.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=self.clk_input, i_CLKFBIN=clkfbout, o_CLKFBOUT=clkfbout,
+                i_CLKIN1=self.clk_input, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
                 # pix clk
                 p_CLKOUT0_DIVIDE_F=10, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
@@ -131,7 +129,7 @@ class S7Clocking(Module, AutoCSR):
             Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
             Instance("BUFG",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
         ]
-        MultiReg(mmcm_locked, self.locked, "sys")
+        self.specials += MultiReg(mmcm_locked, self.locked, "sys")
         self.comb += self._locked.status.eq(self.locked)
 
         self.specials += [
