@@ -74,12 +74,13 @@ class S7HDMIOutClocking(Module, AutoCSR):
         self.clock_domains.cd_pix = ClockDomain("pix")
         self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
 
-        self.drp_dwe = CSRStorage()
-        self.drp_den = CSR()
-        self.drp_drdy = CSRStatus()
-        self.drp_addr = CSRStorage(7)
-        self.drp_di = CSRStorage(16)
-        self.drp_do = CSRStatus(16)
+        self._mmcm_reset = CSRStorage()
+        self._mmcm_read = CSR()
+        self._mmcm_write = CSR()
+        self._mmcm_drdy = CSRStatus()
+        self._mmcm_adr = CSRStorage(7)
+        self._mmcm_dat_w = CSRStorage(16)
+        self._mmcm_dat_r = CSRStatus(16)
 
         # # #
 
@@ -88,38 +89,41 @@ class S7HDMIOutClocking(Module, AutoCSR):
         mmcm_clk0 = Signal()
         mmcm_clk1 = Signal()
 
-        drp_drdy = Signal()
-        drp_do = Signal(16)
+        mmcm_drdy = Signal()
 
         self.specials += [
             Instance("MMCME2_ADV",
-                p_BANDWIDTH="OPTIMIZED", i_RST=0, o_LOCKED=mmcm_locked,
+                p_BANDWIDTH="OPTIMIZED",
+                i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked,
 
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                p_CLKFBOUT_MULT_F=30.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
+                p_CLKFBOUT_MULT_F=30.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=2,
                 i_CLKIN1=ClockSignal("clk100"), i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
                 # CLK0
-                p_CLKOUT0_DIVIDE_F=5.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
+                p_CLKOUT0_DIVIDE_F=10.0, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
                 # CLK1
-                p_CLKOUT1_DIVIDE=1, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1,
+                p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1,
 
                 # DRP
                 i_DCLK=ClockSignal(),
-                i_DWE=self.drp_dwe.storage,
-                i_DEN=self.drp_den.re & self.drp_den.r,
-                o_DRDY=drp_drdy,
-                i_DADDR=self.drp_addr.storage,
-                i_DI=self.drp_di.storage,
-                o_DO=drp_do
+                i_DWE=self._mmcm_write.re,
+                i_DEN=self._mmcm_read.re | self._mmcm_write.re,
+                o_DRDY=mmcm_drdy,
+                i_DADDR=self._mmcm_adr.storage,
+                i_DI=self._mmcm_dat_w.storage,
+                o_DO=self._mmcm_dat_r.status
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
             Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix5x.clk)
         ]
         self.sync += [
-            If(drp_drdy, self.drp_do.status.eq(drp_do)),
-            self.drp_drdy.status.eq(drp_drdy)
+            If(self._mmcm_read.re | self._mmcm_write.re,
+                self._mmcm_drdy.status.eq(0)
+            ).Elif(mmcm_drdy,
+                self._mmcm_drdy.status.eq(1)
+            )
         ]
         self.comb += self.cd_pix.rst.eq(~mmcm_locked)
         self.submodules.clk_gen = S7HDMIOutEncoderSerializer(pads.clk_p, pads.clk_n, bypass_encoder=True)
