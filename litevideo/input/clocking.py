@@ -85,8 +85,16 @@ class S6Clocking(Module, AutoCSR):
 
 class S7Clocking(Module, AutoCSR):
     def __init__(self, pads):
-        self._mmcm_reset = CSRStorage()
+        self._mmcm_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
+
+        # DRP
+        self._mmcm_read = CSR()
+        self._mmcm_write = CSR()
+        self._mmcm_drdy = CSRStatus()
+        self._mmcm_adr = CSRStorage(7)
+        self._mmcm_dat_w = CSRStorage(16)
+        self._mmcm_dat_r = CSRStatus(16)
 
         self.locked = Signal()
         self.clock_domains.cd_pix = ClockDomain()
@@ -109,6 +117,8 @@ class S7Clocking(Module, AutoCSR):
         mmcm_clk0 = Signal()
         mmcm_clk1 = Signal()
         mmcm_clk2 = Signal()
+        mmcm_drdy = Signal()
+
         self.specials += [
             Instance("MMCME2_ADV",
                 p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked,
@@ -124,10 +134,26 @@ class S7Clocking(Module, AutoCSR):
                 p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1,
                 # pix5x clk
                 p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2,
+
+                # DRP
+                i_DCLK=ClockSignal(),
+                i_DWE=self._mmcm_write.re,
+                i_DEN=self._mmcm_read.re | self._mmcm_write.re,
+                o_DRDY=mmcm_drdy,
+                i_DADDR=self._mmcm_adr.storage,
+                i_DI=self._mmcm_dat_w.storage,
+                o_DO=self._mmcm_dat_r.status
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
             Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
             Instance("BUFG",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
+        ]
+        self.sync += [
+            If(self._mmcm_read.re | self._mmcm_write.re,
+                self._mmcm_drdy.status.eq(0)
+            ).Elif(mmcm_drdy,
+                self._mmcm_drdy.status.eq(1)
+            )
         ]
         self.specials += MultiReg(mmcm_locked, self.locked, "sys")
         self.comb += self._locked.status.eq(self.locked)
