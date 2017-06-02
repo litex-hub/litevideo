@@ -124,7 +124,7 @@ class S7Clocking(Module, AutoCSR):
                 p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked,
 
                 # VCO
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=13.4, # 720p60 / 74.25Mhz pixel clock
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.7, # 1080p60 / 148.5Mhz pixel clock
                 p_CLKFBOUT_MULT_F=10.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=self.clk_input, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
