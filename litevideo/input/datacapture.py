@@ -261,6 +261,8 @@ class S7DataCapture(Module, AutoCSR):
 
         # # #
 
+        pix_freq = 148.50e6
+
         # use 2 serdes for phase detection: master & slave
         serdes_m_i_nodelay = Signal()
         serdes_s_i_nodelay = Signal()
@@ -280,7 +282,7 @@ class S7DataCapture(Module, AutoCSR):
         # master serdes
         serdes_m_i_delayed = Signal()
         serdes_m_q = Signal(8)
-        serdes_m_idelay_value = int(1/(4*(742.5e6))/78e-12) # 1/4 bit period
+        serdes_m_idelay_value = int(1/(4*(10*pix_freq))/78e-12) # 1/4 bit period
         assert serdes_m_idelay_value < 32
         self.specials += [
             Instance("IDELAYE2",
@@ -317,7 +319,7 @@ class S7DataCapture(Module, AutoCSR):
         # slave serdes
         serdes_s_i_delayed = Signal()
         serdes_s_q = Signal(8)
-        serdes_s_idelay_value = int(1/(2*(742.5e6))/78e-12) # 1/2 bit period
+        serdes_s_idelay_value = int(1/(2*(10*pix_freq))/78e-12) # 1/2 bit period
         assert serdes_s_idelay_value < 32
         self.specials += [
             Instance("IDELAYE2",
