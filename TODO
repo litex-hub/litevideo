@@ -1,1 +1,1 @@
-- fix 1080p60 input with 7-series
+- init 7-series phase detector to 0 and preload it by software for the 90° shift (would allow ideal configuration for all resolutions)
