@@ -255,13 +255,11 @@ class S7DataCapture(Module, AutoCSR):
     def __init__(self, pad_p, pad_n, ntbits=8):
         self.d = Signal(10)
 
-        self._dly_ctl = CSR(3)
+        self._dly_ctl = CSR(5)
         self._phase = CSRStatus(2)
         self._phase_reset = CSR()
 
         # # #
-
-        pix_freq = 148.50e6
 
         # use 2 serdes for phase detection: master & slave
         serdes_m_i_nodelay = Signal()
@@ -275,26 +273,26 @@ class S7DataCapture(Module, AutoCSR):
             )
         ]
 
-        delay_inc = Signal()
-        delay_ce = Signal()
         delay_rst = Signal()
+        delay_master_inc = Signal()
+        delay_master_ce = Signal()
+        delay_slave_inc = Signal()
+        delay_slave_ce = Signal()
 
         # master serdes
         serdes_m_i_delayed = Signal()
         serdes_m_q = Signal(8)
-        serdes_m_idelay_value = int(1/(4*(10*pix_freq))/78e-12) # 1/4 bit period
-        assert serdes_m_idelay_value < 32
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE",
                 p_REFCLK_FREQUENCY=200.0, p_PIPE_SEL="FALSE",
-                p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_m_idelay_value,
+                p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=0,
 
                 i_C=ClockSignal("pix1p25x"),
                 i_LD=delay_rst,
-                i_CE=delay_ce,
-                i_LDPIPEEN=0, i_INC=delay_inc,
+                i_CE=delay_master_ce,
+                i_LDPIPEEN=0, i_INC=delay_master_inc,
 
                 i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
             ),
@@ -317,21 +315,21 @@ class S7DataCapture(Module, AutoCSR):
         ]
 
         # slave serdes
+        # idelay_value must be preloaded with a 90° phase shift but we
+        # do it dynamically by software to support all resolutions
         serdes_s_i_delayed = Signal()
         serdes_s_q = Signal(8)
-        serdes_s_idelay_value = int(1/(2*(10*pix_freq))/78e-12) # 1/2 bit period
-        assert serdes_s_idelay_value < 32
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
                 p_CINVCTRL_SEL="FALSE", p_HIGH_PERFORMANCE_MODE="TRUE",
                 p_REFCLK_FREQUENCY=200.0, p_PIPE_SEL="FALSE",
-                p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=serdes_s_idelay_value,
+                p_IDELAY_TYPE="VARIABLE", p_IDELAY_VALUE=0,
 
                 i_C=ClockSignal("pix1p25x"),
                 i_LD=delay_rst,
-                i_CE=delay_ce,
-                i_LDPIPEEN=0, i_INC=delay_inc,
+                i_CE=delay_slave_ce,
+                i_LDPIPEEN=0, i_INC=delay_slave_inc,
 
                 i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
             ),
@@ -390,18 +388,24 @@ class S7DataCapture(Module, AutoCSR):
 
         # delay control
         self.submodules.do_delay_rst = PulseSynchronizer("sys", "pix1p25x")
-        self.submodules.do_delay_inc = PulseSynchronizer("sys", "pix1p25x")
-        self.submodules.do_delay_dec = PulseSynchronizer("sys", "pix1p25x")
+        self.submodules.do_delay_master_inc = PulseSynchronizer("sys", "pix1p25x")
+        self.submodules.do_delay_master_dec = PulseSynchronizer("sys", "pix1p25x")
+        self.submodules.do_delay_slave_inc = PulseSynchronizer("sys", "pix1p25x")
+        self.submodules.do_delay_slave_dec = PulseSynchronizer("sys", "pix1p25x")
         self.comb += [
             delay_rst.eq(self.do_delay_rst.o),
-            delay_inc.eq(self.do_delay_inc.o),
-            delay_ce.eq(self.do_delay_inc.o | self.do_delay_dec.o),
+            delay_master_inc.eq(self.do_delay_master_inc.o),
+            delay_master_ce.eq(self.do_delay_master_inc.o | self.do_delay_master_dec.o),
+            delay_slave_inc.eq(self.do_delay_slave_inc.o),
+            delay_slave_ce.eq(self.do_delay_slave_inc.o | self.do_delay_slave_dec.o)
         ]
 
         self.comb += [
             self.do_delay_rst.i.eq(self._dly_ctl.re & self._dly_ctl.r[0]),
-            self.do_delay_inc.i.eq(self._dly_ctl.re & self._dly_ctl.r[1]),
-            self.do_delay_dec.i.eq(self._dly_ctl.re & self._dly_ctl.r[2])
+            self.do_delay_master_inc.i.eq(self._dly_ctl.re & self._dly_ctl.r[1]),
+            self.do_delay_master_dec.i.eq(self._dly_ctl.re & self._dly_ctl.r[2]),
+            self.do_delay_slave_inc.i.eq(self._dly_ctl.re & self._dly_ctl.r[3]),
+            self.do_delay_slave_dec.i.eq(self._dly_ctl.re & self._dly_ctl.r[4])
         ]
 
         # phase detector control
