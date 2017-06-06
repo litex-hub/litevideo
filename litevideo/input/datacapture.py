@@ -383,8 +383,8 @@ class S7DataCapture(Module, AutoCSR):
             If(reset_lateness,
                 lateness.eq(2**(ntbits - 1))
             ).Elif(~too_late & ~too_early,
-                If(self.phase_detector.dec, lateness.eq(lateness - 1)),
-                If(self.phase_detector.inc, lateness.eq(lateness + 1))
+                If(self.phase_detector.dec, lateness.eq(lateness + 1)),
+                If(self.phase_detector.inc, lateness.eq(lateness - 1))
             )
         ]
 
