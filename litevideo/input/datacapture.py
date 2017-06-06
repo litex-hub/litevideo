@@ -1,6 +1,6 @@
 from litex import *
 from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
-from litex.gen.genlib.misc import WaitTimer, BitSlip
+from litex.gen.genlib.misc import WaitTimer
 from litex.gen.genlib.cdc import MultiReg, Gearbox
 
 from litex.soc.interconnect.csr import *
@@ -353,11 +353,9 @@ class S7DataCapture(Module, AutoCSR):
 
         # datapath
         self.submodules.gearbox = Gearbox(8, "pix1p25x", 10, "pix")
-        self.submodules.bitslip = ClockDomainsRenamer("pix")(BitSlip(10))
         self.comb += [
             self.gearbox.i.eq(serdes_m_q),
-            self.bitslip.i.eq(self.gearbox.o),
-            self.d.eq(self.bitslip.o)
+            self.d.eq(self.gearbox.o)
         ]
 
         # phase detector
