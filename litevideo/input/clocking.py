@@ -145,8 +145,8 @@ class S7Clocking(Module, AutoCSR):
                 o_DO=self._mmcm_dat_r.status
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
-            Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
-            Instance("BUFG",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
+            Instance("BUFR", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
+            Instance("BUFIO",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
         ]
         self.sync += [
             If(self._mmcm_read.re | self._mmcm_write.re,
