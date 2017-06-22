@@ -10,7 +10,7 @@
                  powered by LiteX
 
 [> Intro
----------
+--------
 LiteVideo provides small footprint and configurable video cores.
 
 LiteVideo is part of LiteX libraries whose aims are to lower entry level of
@@ -32,10 +32,10 @@ LiteVideo can be used as LiteX library or can be integrated with your standard
 design flow by generating the verilog rtl that you will use as a standard core.
 
 [> Features
-------------
+-----------
 PHY:
   - HDMI input (Spartan6, 7-Series)
-  - HDMI output (Spartan6, 7-Series) 
+  - HDMI output (Spartan6, 7-Series)
 Core:
   - DMA (input/output)
   - Triple buffering (output)
@@ -44,20 +44,20 @@ Core:
   - Floating point arithmetic (WIP)
 
 [> FPGA Proven
----------------
+--------------
 LiteVideo is already used in commercial and open-source designs:
 - HDMI2USB: http://hdmi2usb.tv/home/
 - and others commercial designs...
 
 [> Possible improvements
--------------------------
+------------------------
 - add standardized interfaces (AXI, Avalon-ST)
 - add Display Port support
 - add more documentation
 - ... See below Support and consulting :)
 
 [> Getting started
--------------------
+------------------
 1. Install Python3 and your vendor's software
 
 2. Obtain LiteX and install it:
@@ -66,14 +66,10 @@ LiteVideo is already used in commercial and open-source designs:
   python3 setup.py develop
   cd ..
 
-3. TODO
-
-[> Simulations
----------------
-TODO
+3. TODO: add example design(s)
 
 [> License
------------
+----------
 LiteVideo is released under the very permissive two-clause BSD license. Under the
 terms of this license, you are authorized to use LiteVideo for closed-source
 proprietary designs.
@@ -86,7 +82,7 @@ do them if possible:
  - send us the modifications and improvements you have done to LiteVideo.
 
 [> Support and consulting
---------------------------
+-------------------------
 We love open-source hardware and like sharing our designs with others.
 
 LiteVideo is developed and maintained by EnjoyDigital.
@@ -99,4 +95,5 @@ So feel free to contact us, we'd love to work with you! (and eventually shorten
 the list of the possible improvements :)
 
 [> Contact
+----------
 E-mail: florent [AT] enjoy-digital.fr
