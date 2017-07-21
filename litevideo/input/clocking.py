@@ -78,8 +78,8 @@ class S6Clocking(Module, AutoCSR):
         self.comb += self._locked.status.eq(self.locked)
 
         self.specials += [
-            AsyncResetSynchronizer(self.cd_pix, ~locked_async),
-            AsyncResetSynchronizer(self.cd_pix2x, ~locked_async),
+            AsyncResetSynchronizer(self._cd_pix, ~locked_async),
+            AsyncResetSynchronizer(self._cd_pix2x, ~locked_async),
         ]
 
 
