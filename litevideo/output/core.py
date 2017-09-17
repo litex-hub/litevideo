@@ -29,7 +29,7 @@ class Initiator(Module, AutoCSR):
 
         self.enable = CSRStorage()
         for name, width in frame_parameter_layout + frame_dma_layout:
-            setattr(self, name, CSRStorage(width, name=name))
+            setattr(self, name, CSRStorage(width, name=name, atomic_write=True))
             self.comb += getattr(cdc.sink, name).eq(getattr(self, name).storage)
         self.comb += cdc.sink.valid.eq(self.enable.storage)
         self.comb += cdc.source.connect(self.source)
