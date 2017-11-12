@@ -7,7 +7,7 @@ from litex.soc.interconnect.csr import *
 
 
 class S6DataCapture(Module, AutoCSR):
-    def __init__(self, pad_p, pad_n, ntbits=8):
+    def __init__(self, pad_p, pad_n, ntbits=8, polarity=0):
         self.serdesstrobe = Signal()
         self.d = Signal(10)
 
@@ -198,7 +198,10 @@ class S6DataCapture(Module, AutoCSR):
         # 5:10 deserialization
         dsr = Signal(10)
         self.sync.pix2x += dsr.eq(Cat(dsr[5:], dsr2))
-        self.sync.pix += self.d.eq(dsr)
+        if polarity:
+            self.sync.pix += self.d.eq(~dsr)
+        else:
+            self.sync.pix += self.d.eq(dsr)
 
 
 class S7PhaseDetector(Module, AutoCSR):
@@ -252,7 +255,7 @@ class S7PhaseDetector(Module, AutoCSR):
 
 
 class S7DataCapture(Module, AutoCSR):
-    def __init__(self, pad_p, pad_n, ntbits=8):
+    def __init__(self, pad_p, pad_n, ntbits=8, polarity=0):
         self.d = Signal(10)
 
         self._dly_ctl = CSR(5)
@@ -282,6 +285,7 @@ class S7DataCapture(Module, AutoCSR):
         # master serdes
         serdes_m_i_delayed = Signal()
         serdes_m_q = Signal(8)
+        serdes_m_d = Signal(8)
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
@@ -319,6 +323,7 @@ class S7DataCapture(Module, AutoCSR):
         # do it dynamically by software to support all resolutions
         serdes_s_i_delayed = Signal()
         serdes_s_q = Signal(8)
+        serdes_s_d = Signal(8)
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
@@ -351,10 +356,22 @@ class S7DataCapture(Module, AutoCSR):
             ),
         ]
 
+        # polarity
+        if polarity:
+            self.comb += [
+                serdes_m_d.eq(~serdes_m_q),
+                serdes_s_d.eq(~serdes_s_q)
+            ]
+        else:
+            self.comb += [
+                serdes_m_d.eq(serdes_m_q),
+                serdes_s_d.eq(serdes_s_q)
+            ]
+
         # datapath
         self.submodules.gearbox = Gearbox(8, "pix1p25x", 10, "pix")
         self.comb += [
-            self.gearbox.i.eq(serdes_m_q),
+            self.gearbox.i.eq(serdes_m_d),
             self.d.eq(self.gearbox.o)
         ]
 
@@ -362,8 +379,8 @@ class S7DataCapture(Module, AutoCSR):
         self.submodules.phase_detector = ClockDomainsRenamer("pix1p25x")(
             S7PhaseDetector())
         self.comb += [
-            self.phase_detector.mdata.eq(serdes_m_q),
-            self.phase_detector.sdata.eq(~serdes_s_q) # ~ since inverted at ibufds
+            self.phase_detector.mdata.eq(serdes_m_d),
+            self.phase_detector.sdata.eq(~serdes_s_d) # ~ since inverted at ibufds
         ]
 
         # phase error accumulator
