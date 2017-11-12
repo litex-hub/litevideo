@@ -10,7 +10,7 @@ from litevideo.output.hdmi.encoder import Encoder
 # from http://hamsterworks.co.nz/.
 
 class S7HDMIOutEncoderSerializer(Module):
-    def __init__(self, pad_p, pad_n, bypass_encoder=False):
+    def __init__(self, pad_p, pad_n, bypass_encoder=False, polarity=0):
         if not bypass_encoder:
             self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
             self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
@@ -19,6 +19,12 @@ class S7HDMIOutEncoderSerializer(Module):
             self.data = Signal(10)
 
         # # #
+
+        data = Signal(10)
+        if polarity:
+            self.comb += data.eq(~self.data)
+        else:
+            self.comb += data.eq(self.data)
 
         ce = Signal()
         self.sync.pix += ce.eq(~ResetSignal("pix"))
@@ -38,10 +44,10 @@ class S7HDMIOutEncoderSerializer(Module):
                 i_TCE=0,
                 i_RST=ResetSignal("pix"),
                 i_CLK=ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
-                i_D1=self.data[0], i_D2=self.data[1],
-                i_D3=self.data[2], i_D4=self.data[3],
-                i_D5=self.data[4], i_D6=self.data[5],
-                i_D7=self.data[6], i_D8=self.data[7],
+                i_D1=data[0], i_D2=data[1],
+                i_D3=data[2], i_D4=data[3],
+                i_D5=data[4], i_D6=data[5],
+                i_D7=data[6], i_D8=data[7],
 
                 i_SHIFTIN1=shift[0], i_SHIFTIN2=shift[1],
                 #o_SHIFTOUT1=, o_SHIFTOUT2=,
@@ -56,7 +62,7 @@ class S7HDMIOutEncoderSerializer(Module):
                 i_RST=ResetSignal("pix"),
                 i_CLK=ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_D1=0, i_D2=0,
-                i_D3=self.data[8], i_D4=self.data[9],
+                i_D3=data[8], i_D4=data[9],
                 i_D5=0, i_D6=0,
                 i_D7=0, i_D8=0,
 
@@ -130,14 +136,14 @@ class S7HDMIOutClocking(Module, AutoCSR):
 
 
 class S7HDMIOutPHY(Module):
-    def __init__(self, pads):
+    def __init__(self, pads, polarities=[0, 0, 0]):
         self.sink = sink = stream.Endpoint(phy_layout())
 
         # # #
 
-        self.submodules.es0 = S7HDMIOutEncoderSerializer(pads.data0_p, pads.data0_n)
-        self.submodules.es1 = S7HDMIOutEncoderSerializer(pads.data1_p, pads.data1_n)
-        self.submodules.es2 = S7HDMIOutEncoderSerializer(pads.data2_p, pads.data2_n)
+        self.submodules.es0 = S7HDMIOutEncoderSerializer(pads.data0_p, pads.data0_n, polarities[0])
+        self.submodules.es1 = S7HDMIOutEncoderSerializer(pads.data1_p, pads.data1_n, polarities[1])
+        self.submodules.es2 = S7HDMIOutEncoderSerializer(pads.data2_p, pads.data2_n, polarities[2])
         self.comb += [
             sink.ready.eq(1),
             self.es0.d.eq(sink.b),

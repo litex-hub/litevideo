@@ -182,15 +182,20 @@ class S6HDMIOutClocking(Module, AutoCSR):
 
 
 class _S6HDMIOutEncoderSerializer(Module):
-    def __init__(self, serdesstrobe, pad_p, pad_n):
+    def __init__(self, serdesstrobe, pad_p, pad_n, polarity):
         self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
         self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
 
         # # #
 
         # 2X soft serialization
+        ed_2x_pol = Signal(5)
         ed_2x = Signal(5)
-        self.sync.pix2x += ed_2x.eq(Mux(ClockSignal("pix"), self.encoder.out[:5], self.encoder.out[5:]))
+        self.sync.pix2x += ed_2x_pol.eq(Mux(ClockSignal("pix"), self.encoder.out[:5], self.encoder.out[5:]))
+        if polarity:
+            self.comb += ed_2x.eq(~ed_2x_pol)
+        else:
+            self.comb += ed_2x.eq(ed_2x_pol)
 
         # 5X hard serialization
         cascade_di = Signal()
@@ -229,15 +234,15 @@ class _S6HDMIOutEncoderSerializer(Module):
 
 
 class S6HDMIOutPHY(Module):
-    def __init__(self, pads):
+    def __init__(self, pads, polarities=[0, 0, 0]):
         self.serdesstrobe = Signal()
         self.sink = sink = stream.Endpoint(phy_layout())
 
         # # #
 
-        self.submodules.es0 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data0_p, pads.data0_n)
-        self.submodules.es1 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data1_p, pads.data1_n)
-        self.submodules.es2 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data2_p, pads.data2_n)
+        self.submodules.es0 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data0_p, pads.data0_n, polarities[0])
+        self.submodules.es1 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data1_p, pads.data1_n, polarities[1])
+        self.submodules.es2 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data2_p, pads.data2_n, polarities[2])
         self.comb += [
             sink.ready.eq(1),
             self.es0.d.eq(sink.b),
