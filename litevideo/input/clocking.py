@@ -6,7 +6,7 @@ from litex.soc.interconnect.csr import *
 
 
 class S6Clocking(Module, AutoCSR):
-    def __init__(self, pads):
+    def __init__(self, pads, clkin_freq=None):
         self._pll_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
 
@@ -84,7 +84,7 @@ class S6Clocking(Module, AutoCSR):
 
 
 class S7Clocking(Module, AutoCSR):
-    def __init__(self, pads):
+    def __init__(self, pads, clkin_freq=148.5e6):
         self._mmcm_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
 
@@ -103,6 +103,7 @@ class S7Clocking(Module, AutoCSR):
 
         # # #
 
+        assert clkin_freq in [74.25e6, 148.5e6]
         self.clk_input = Signal()
         clk_input_bufg = Signal()
         self.specials += [
@@ -124,8 +125,8 @@ class S7Clocking(Module, AutoCSR):
                 p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked,
 
                 # VCO
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.7, # 1080p60 / 148.5Mhz pixel clock
-                p_CLKFBOUT_MULT_F=10.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/clkin_freq,
+                p_CLKFBOUT_MULT_F=10.0*(148.5e6/clkin_freq), p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=self.clk_input, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
                 # pix clk
