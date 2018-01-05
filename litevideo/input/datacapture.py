@@ -7,7 +7,7 @@ from litex.soc.interconnect.csr import *
 
 
 class S6DataCapture(Module, AutoCSR):
-    def __init__(self, pad_p, pad_n, ntbits=8, polarity=0):
+    def __init__(self, pad_p, pad_n, ntbits=8):
         self.serdesstrobe = Signal()
         self.d = Signal(10)
 
@@ -198,7 +198,7 @@ class S6DataCapture(Module, AutoCSR):
         # 5:10 deserialization
         dsr = Signal(10)
         self.sync.pix2x += dsr.eq(Cat(dsr[5:], dsr2))
-        if polarity:
+        if hasattr(pad_p, "inverted"):
             self.sync.pix += self.d.eq(~dsr)
         else:
             self.sync.pix += self.d.eq(dsr)
@@ -255,7 +255,7 @@ class S7PhaseDetector(Module, AutoCSR):
 
 
 class S7DataCapture(Module, AutoCSR):
-    def __init__(self, pad_p, pad_n, ntbits=8, polarity=0):
+    def __init__(self, pad_p, pad_n, ntbits=8):
         self.d = Signal(10)
 
         self._dly_ctl = CSR(5)
@@ -357,7 +357,7 @@ class S7DataCapture(Module, AutoCSR):
         ]
 
         # polarity
-        if polarity:
+        if hasattr(pad_p, "inverted"):
             self.comb += [
                 serdes_m_d.eq(~serdes_m_q),
                 serdes_s_d.eq(~serdes_s_q)

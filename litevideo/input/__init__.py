@@ -26,7 +26,7 @@ datacapture_cls = {
 
 class HDMIIn(Module, AutoCSR):
     def __init__(self, pads, dram_port=None, n_dma_slots=2, fifo_depth=512, device="xc6",
-        default_edid=_default_edid, clk_polarity=0, datas_polarity=[0, 0, 0], clkin_freq=148.5e6):
+        default_edid=_default_edid, clkin_freq=148.5e6):
         if hasattr(pads, "scl"):
             self.submodules.edid = EDID(pads, default_edid)
         self.submodules.clocking = clocking_cls[device](pads, clkin_freq)
@@ -35,8 +35,7 @@ class HDMIIn(Module, AutoCSR):
             name = "data" + str(datan)
 
             cap = datacapture_cls[device](getattr(pads, name + "_p"),
-                                          getattr(pads, name + "_n"),
-                                          polarity=datas_polarity[datan])
+                                          getattr(pads, name + "_n"))
             setattr(self.submodules, name + "_cap", cap)
             if hasattr(cap, "serdesstrobe"):
                 self.comb += cap.serdesstrobe.eq(self.clocking.serdesstrobe)

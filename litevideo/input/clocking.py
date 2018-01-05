@@ -6,7 +6,7 @@ from litex.soc.interconnect.csr import *
 
 
 class S6Clocking(Module, AutoCSR):
-    def __init__(self, pads, clk_polarity, clkin_freq=None):
+    def __init__(self, pads, clkin_freq=None):
         assert clk_polarity == 0
         self._pll_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
@@ -85,7 +85,7 @@ class S6Clocking(Module, AutoCSR):
 
 
 class S7Clocking(Module, AutoCSR):
-    def __init__(self, pads, clk_polarity, clkin_freq=148.5e6):
+    def __init__(self, pads, clkin_freq=148.5e6):
         self._mmcm_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
 
@@ -107,7 +107,7 @@ class S7Clocking(Module, AutoCSR):
         assert clkin_freq in [74.25e6, 148.5e6]
         self.clk_input = Signal()
         clk_input_bufg = Signal()
-        if clk_polarity:
+        if hasattr(pads.clk_p, "inverted"):
             self.specials += Instance("IBUFDS_DIFF_OUT",
                 name="hdmi_in_ibufds",
                 i_I=pads.clk_p, i_IB=pads.clk_n,
