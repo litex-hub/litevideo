@@ -11,6 +11,7 @@ from litevideo.output.hdmi.encoder import Encoder
 # This assumes a 50MHz base clock
 class S6HDMIOutClocking(Module, AutoCSR):
     def __init__(self, pads, external_clocking, max_pix_clk=100e6):
+        assert not hasattr(pads.clk_p, "inverted")
         if external_clocking is None:
             self._cmd_data = CSRStorage(10)
             self._send_cmd_data = CSR()
@@ -183,6 +184,7 @@ class S6HDMIOutClocking(Module, AutoCSR):
 
 class _S6HDMIOutEncoderSerializer(Module):
     def __init__(self, serdesstrobe, pad_p, pad_n, polarity):
+        assert not hasattr(pad_p, "inverted")
         self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
         self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
 

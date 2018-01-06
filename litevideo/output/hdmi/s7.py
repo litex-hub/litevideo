@@ -11,6 +11,7 @@ from litevideo.output.hdmi.encoder import Encoder
 
 class S7HDMIOutEncoderSerializer(Module):
     def __init__(self, pad_p, pad_n, bypass_encoder=False, polarity=0):
+        assert not hasattr(pad_p, "inverted")
         if not bypass_encoder:
             self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
             self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
@@ -76,6 +77,7 @@ class S7HDMIOutEncoderSerializer(Module):
 # This assumes a 100MHz base clock
 class S7HDMIOutClocking(Module, AutoCSR):
     def __init__(self, pads, external_clocking):
+        assert not hasattr(pads.clk_p, "inverted")
         # TODO: implement external clocking
         self.clock_domains.cd_pix = ClockDomain("pix")
         self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
