@@ -10,8 +10,7 @@ from litevideo.output.hdmi.encoder import Encoder
 # from http://hamsterworks.co.nz/.
 
 class S7HDMIOutEncoderSerializer(Module):
-    def __init__(self, pad_p, pad_n, bypass_encoder=False, polarity=0):
-        assert not hasattr(pad_p, "inverted")
+    def __init__(self, pad_p, pad_n, bypass_encoder=False):
         if not bypass_encoder:
             self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
             self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
@@ -22,7 +21,7 @@ class S7HDMIOutEncoderSerializer(Module):
         # # #
 
         data = Signal(10)
-        if polarity:
+        if hasattr(pad_p, "inverted"):
             self.comb += data.eq(~self.data)
         else:
             self.comb += data.eq(self.data)
@@ -77,7 +76,6 @@ class S7HDMIOutEncoderSerializer(Module):
 # This assumes a 100MHz base clock
 class S7HDMIOutClocking(Module, AutoCSR):
     def __init__(self, pads, external_clocking):
-        assert not hasattr(pads.clk_p, "inverted")
         # TODO: implement external clocking
         self.clock_domains.cd_pix = ClockDomain("pix")
         self.clock_domains.cd_pix5x = ClockDomain("pix5x", reset_less=True)
@@ -138,14 +136,14 @@ class S7HDMIOutClocking(Module, AutoCSR):
 
 
 class S7HDMIOutPHY(Module):
-    def __init__(self, pads, polarities=[0, 0, 0]):
+    def __init__(self, pads):
         self.sink = sink = stream.Endpoint(phy_layout())
 
         # # #
 
-        self.submodules.es0 = S7HDMIOutEncoderSerializer(pads.data0_p, pads.data0_n, polarities[0])
-        self.submodules.es1 = S7HDMIOutEncoderSerializer(pads.data1_p, pads.data1_n, polarities[1])
-        self.submodules.es2 = S7HDMIOutEncoderSerializer(pads.data2_p, pads.data2_n, polarities[2])
+        self.submodules.es0 = S7HDMIOutEncoderSerializer(pads.data0_p, pads.data0_n)
+        self.submodules.es1 = S7HDMIOutEncoderSerializer(pads.data1_p, pads.data1_n)
+        self.submodules.es2 = S7HDMIOutEncoderSerializer(pads.data2_p, pads.data2_n)
         self.comb += [
             sink.ready.eq(1),
             self.es0.d.eq(sink.b),

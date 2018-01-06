@@ -11,7 +11,6 @@ from litevideo.output.hdmi.encoder import Encoder
 # This assumes a 50MHz base clock
 class S6HDMIOutClocking(Module, AutoCSR):
     def __init__(self, pads, external_clocking, max_pix_clk=100e6):
-        assert not hasattr(pads.clk_p, "inverted")
         if external_clocking is None:
             self._cmd_data = CSRStorage(10)
             self._send_cmd_data = CSR()
@@ -176,15 +175,16 @@ class S6HDMIOutClocking(Module, AutoCSR):
                                   o_Q=hdmi_clk_se,
                                   i_C0=ClockSignal("pix"),
                                   i_C1=~ClockSignal("pix"),
-                                  i_CE=1, i_D0=1, i_D1=0,
+                                  i_CE=1, 
+                                  i_D0=not hasattr(pads.clk_p, "inverted"),
+                                  i_D1=hasattr(pads.clk_p, "inverted"),
                                   i_R=0, i_S=0)
         self.specials += Instance("OBUFDS", i_I=hdmi_clk_se,
                                   o_O=pads.clk_p, o_OB=pads.clk_n)
 
 
 class _S6HDMIOutEncoderSerializer(Module):
-    def __init__(self, serdesstrobe, pad_p, pad_n, polarity):
-        assert not hasattr(pad_p, "inverted")
+    def __init__(self, serdesstrobe, pad_p, pad_n):
         self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
         self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
 
@@ -194,7 +194,7 @@ class _S6HDMIOutEncoderSerializer(Module):
         ed_2x_pol = Signal(5)
         ed_2x = Signal(5)
         self.sync.pix2x += ed_2x_pol.eq(Mux(ClockSignal("pix"), self.encoder.out[:5], self.encoder.out[5:]))
-        if polarity:
+        if hasattr(pad_p, "inverted"):
             self.comb += ed_2x.eq(~ed_2x_pol)
         else:
             self.comb += ed_2x.eq(ed_2x_pol)
@@ -236,15 +236,15 @@ class _S6HDMIOutEncoderSerializer(Module):
 
 
 class S6HDMIOutPHY(Module):
-    def __init__(self, pads, polarities=[0, 0, 0]):
+    def __init__(self, pads):
         self.serdesstrobe = Signal()
         self.sink = sink = stream.Endpoint(phy_layout())
 
         # # #
 
-        self.submodules.es0 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data0_p, pads.data0_n, polarities[0])
-        self.submodules.es1 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data1_p, pads.data1_n, polarities[1])
-        self.submodules.es2 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data2_p, pads.data2_n, polarities[2])
+        self.submodules.es0 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data0_p, pads.data0_n)
+        self.submodules.es1 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data1_p, pads.data1_n)
+        self.submodules.es2 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data2_p, pads.data2_n)
         self.comb += [
             sink.ready.eq(1),
             self.es0.d.eq(sink.b),
