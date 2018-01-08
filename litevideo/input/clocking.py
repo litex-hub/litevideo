@@ -106,7 +106,7 @@ class S7Clocking(Module, AutoCSR):
 
         assert clkin_freq in [74.25e6, 148.5e6]
         self.clk_input = Signal()
-        clk_input_bufg = Signal()
+        clk_input_bufr = Signal()
         if hasattr(pads.clk_p, "inverted"):
             self.specials += Instance("IBUFDS_DIFF_OUT",
                 name="hdmi_in_ibufds",
@@ -117,7 +117,7 @@ class S7Clocking(Module, AutoCSR):
                 name="hdmi_in_ibufds",
                 i_I=pads.clk_p, i_IB=pads.clk_n,
                 o_O=self.clk_input)
-        self.specials += Instance("BUFG", i_I=self.clk_input, o_O=clk_input_bufg)
+        self.specials += Instance("BUFR", i_I=self.clk_input, o_O=clk_input_bufr)
 
         mmcm_fb = Signal()
         mmcm_locked = Signal()
@@ -133,7 +133,7 @@ class S7Clocking(Module, AutoCSR):
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/clkin_freq,
                 p_CLKFBOUT_MULT_F=10.0*(148.5e6/clkin_freq), p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=self.clk_input, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
+                i_CLKIN1=clk_input_bufr, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
                 # pix clk
                 p_CLKOUT0_DIVIDE_F=10, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
