@@ -360,12 +360,12 @@ class S7DataCapture(Module, AutoCSR):
         if hasattr(pad_p, "inverted"):
             self.comb += [
                 serdes_m_d.eq(~serdes_m_q),
-                serdes_s_d.eq(~serdes_s_q)
+                serdes_s_d.eq(serdes_s_q)
             ]
         else:
             self.comb += [
                 serdes_m_d.eq(serdes_m_q),
-                serdes_s_d.eq(serdes_s_q)
+                serdes_s_d.eq(~serdes_s_q)
             ]
 
         # datapath
@@ -380,7 +380,7 @@ class S7DataCapture(Module, AutoCSR):
             S7PhaseDetector())
         self.comb += [
             self.phase_detector.mdata.eq(serdes_m_d),
-            self.phase_detector.sdata.eq(~serdes_s_d) # ~ since inverted at ibufds
+            self.phase_detector.sdata.eq(serdes_s_d)
         ]
 
         # phase error accumulator
