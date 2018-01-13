@@ -51,7 +51,7 @@ class S6HDMIOutClocking(Module, AutoCSR):
                 p_STARTUP_WAIT="FALSE",
 
                 # reset
-				i_FREEZEDCM=0,
+                i_FREEZEDCM=0,
                 i_RST=ResetSignal(),
 
                 # input

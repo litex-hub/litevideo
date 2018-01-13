@@ -68,7 +68,7 @@ class VideoOut(Module, AutoCSR):
 
             self.comb += [
                 core.source.ready.eq(1), # always ready, no flow control
-			    ycbcr422to444.reset.eq(core.source.de & ~de_r),
+                ycbcr422to444.reset.eq(core.source.de & ~de_r),
                 ycbcr422to444.sink.valid.eq(core_source_valid_d),
                 ycbcr422to444.sink.y.eq(core_source_data_d[:8]),
                 ycbcr422to444.sink.cb_cr.eq(core_source_data_d[8:]),
