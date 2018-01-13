@@ -17,12 +17,12 @@ from litevideo.float_arithmetic.common import *
 @CEInserter()
 class FloatMultDatapath(Module):
     """
-	This adds a floating point multiplication unit.
-	Inputs: in1 and in2
-	Output: out
-	Implemented as a 5 stage pipeline, design is based on float16 design doc. 
-	Google Docs Link: https://goo.gl/Rvx2B7    
-	"""
+    This adds a floating point multiplication unit.
+    Inputs: in1 and in2
+    Output: out
+    Implemented as a 5 stage pipeline, design is based on float16 design doc.
+    Google Docs Link: https://goo.gl/Rvx2B7
+    """
     latency = 5
     def __init__(self, dw):
         self.sink = sink = Record(in_layout(dw))
