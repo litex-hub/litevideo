@@ -136,23 +136,32 @@ class S7HDMIOutClocking(Module, AutoCSR):
 
 
 class S7HDMIOutPHY(Module):
-    def __init__(self, pads):
-        self.sink = sink = stream.Endpoint(phy_layout())
+    def __init__(self, pads, mode):
+        self.sink = sink = stream.Endpoint(phy_layout(mode))
 
         # # #
 
-        self.submodules.es0 = S7HDMIOutEncoderSerializer(pads.data0_p, pads.data0_n)
-        self.submodules.es1 = S7HDMIOutEncoderSerializer(pads.data1_p, pads.data1_n)
-        self.submodules.es2 = S7HDMIOutEncoderSerializer(pads.data2_p, pads.data2_n)
-        self.comb += [
-            sink.ready.eq(1),
-            self.es0.d.eq(sink.b),
-            self.es1.d.eq(sink.g),
-            self.es2.d.eq(sink.r),
-            self.es0.c.eq(Cat(sink.hsync, sink.vsync)),
-            self.es1.c.eq(0),
-            self.es2.c.eq(0),
-            self.es0.de.eq(sink.de),
-            self.es1.de.eq(sink.de),
-            self.es2.de.eq(sink.de)
-        ]
+        self.submodules.es0 = S7HDMIOutEncoderSerializer(pads.data0_p, pads.data0_n, mode == "raw")
+        self.submodules.es1 = S7HDMIOutEncoderSerializer(pads.data1_p, pads.data1_n, mode == "raw")
+        self.submodules.es2 = S7HDMIOutEncoderSerializer(pads.data2_p, pads.data2_n, mode == "raw")
+
+        if mode == "raw":
+            self.comb += [
+                sink.ready.eq(1),
+                self.es0.data.eq(sink.c0),
+                self.es1.data.eq(sink.c1),
+                self.es2.data.eq(sink.c2)
+            ]
+        else:
+            self.comb += [
+                sink.ready.eq(1),
+                self.es0.d.eq(sink.b),
+                self.es1.d.eq(sink.g),
+                self.es2.d.eq(sink.r),
+                self.es0.c.eq(Cat(sink.hsync, sink.vsync)),
+                self.es1.c.eq(0),
+                self.es2.c.eq(0),
+                self.es0.de.eq(sink.de),
+                self.es1.de.eq(sink.de),
+                self.es2.de.eq(sink.de)
+            ]

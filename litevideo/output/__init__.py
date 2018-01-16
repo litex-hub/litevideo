@@ -39,14 +39,21 @@ class VideoOut(Module, AutoCSR):
         cd = dram_port.cd
 
         self.submodules.core = core = VideoOutCore(dram_port, mode, fifo_depth)
-        self.submodules.driver = driver = Driver(device, pads, external_clocking)
+        self.submodules.driver = driver = Driver(device, pads, mode, external_clocking)
 
-        if mode == "rgb":
+        if mode == "raw":
             self.comb += [
                 core.source.connect(driver.sink, omit=["data"]),
-                driver.sink.r.eq(core.source.data[:8]),
+                driver.sink.c0.eq(core.source.data[0:10]),
+                driver.sink.c1.eq(core.source.data[10:20]),
+                driver.sink.c2.eq(core.source.data[20:30])
+            ]
+        elif mode == "rgb":
+            self.comb += [
+                core.source.connect(driver.sink, omit=["data"]),
+                driver.sink.r.eq(core.source.data[0:8]),
                 driver.sink.g.eq(core.source.data[8:16]),
-                driver.sink.b.eq(core.source.data[16:])
+                driver.sink.b.eq(core.source.data[16:24])
             ]
         elif mode == "ycbcr422":
             ycbcr422to444 = ClockDomainsRenamer(cd)(YCbCr422to444())

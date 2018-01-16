@@ -37,7 +37,12 @@ def video_out_layout(dw):
     payload_layout = [("data", dw)]
     return stream.EndpointDescription(payload_layout, param_layout)
 
-def phy_layout():
-    param_layout = frame_timing_layout
-    payload_layout = [("r", 8), ("g", 8), ("b", 8)]
-    return stream.EndpointDescription(payload_layout, param_layout)
+def phy_layout(mode):
+    if mode == "raw":
+        param_layout = frame_timing_layout # not used
+        payload_layout = [("c0", 10), ("c1", 10), ("c2", 11)]
+        return stream.EndpointDescription(payload_layout, param_layout)
+    else:
+        param_layout = frame_timing_layout
+        payload_layout = [("r", 8), ("g", 8), ("b", 8)]
+        return stream.EndpointDescription(payload_layout, param_layout)

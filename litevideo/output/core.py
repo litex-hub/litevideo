@@ -143,6 +143,7 @@ class TimingGenerator(Module):
 
 
 modes_dw = {
+    "raw":      32,
     "rgb":      24,
     "ycbcr422": 16
 }
@@ -189,7 +190,7 @@ class VideoOutCore(Module, AutoCSR):
                 dma.source.ready.eq(1)
             ).Elif(source.valid & source.ready,
                 timing.source.ready.eq(1),
-                dma.source.ready.eq(timing.source.de)
+                dma.source.ready.eq(timing.source.de | (mode == "raw"))
             )
         ]
 

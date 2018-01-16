@@ -175,7 +175,7 @@ class S6HDMIOutClocking(Module, AutoCSR):
                                   o_Q=hdmi_clk_se,
                                   i_C0=ClockSignal("pix"),
                                   i_C1=~ClockSignal("pix"),
-                                  i_CE=1, 
+                                  i_CE=1,
                                   i_D0=not hasattr(pads.clk_p, "inverted"),
                                   i_D1=hasattr(pads.clk_p, "inverted"),
                                   i_R=0, i_S=0)
@@ -184,16 +184,20 @@ class S6HDMIOutClocking(Module, AutoCSR):
 
 
 class _S6HDMIOutEncoderSerializer(Module):
-    def __init__(self, serdesstrobe, pad_p, pad_n):
-        self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
-        self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
+    def __init__(self, serdesstrobe, pad_p, pad_n, bypass_encoder=False):
+        if not bypass_encoder:
+            self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
+            self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
+            self.data = self.encoder.out
+        else:
+            self.data = Signal(10)
 
         # # #
 
         # 2X soft serialization
         ed_2x_pol = Signal(5)
         ed_2x = Signal(5)
-        self.sync.pix2x += ed_2x_pol.eq(Mux(ClockSignal("pix"), self.encoder.out[:5], self.encoder.out[5:]))
+        self.sync.pix2x += ed_2x_pol.eq(Mux(ClockSignal("pix"), self.data[:5], self.data[5:]))
         if hasattr(pad_p, "inverted"):
             self.comb += ed_2x.eq(~ed_2x_pol)
         else:
@@ -236,24 +240,33 @@ class _S6HDMIOutEncoderSerializer(Module):
 
 
 class S6HDMIOutPHY(Module):
-    def __init__(self, pads):
+    def __init__(self, pads, mode):
         self.serdesstrobe = Signal()
         self.sink = sink = stream.Endpoint(phy_layout())
 
         # # #
 
-        self.submodules.es0 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data0_p, pads.data0_n)
-        self.submodules.es1 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data1_p, pads.data1_n)
-        self.submodules.es2 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data2_p, pads.data2_n)
-        self.comb += [
-            sink.ready.eq(1),
-            self.es0.d.eq(sink.b),
-            self.es1.d.eq(sink.g),
-            self.es2.d.eq(sink.r),
-            self.es0.c.eq(Cat(sink.hsync, sink.vsync)),
-            self.es1.c.eq(0),
-            self.es2.c.eq(0),
-            self.es0.de.eq(sink.de),
-            self.es1.de.eq(sink.de),
-            self.es2.de.eq(sink.de)
-        ]
+        self.submodules.es0 = _S6HDMIOutEncoderSerializer(pads.data0_p, pads.data0_n, mode == "raw")
+        self.submodules.es1 = _S6HDMIOutEncoderSerializer(pads.data1_p, pads.data1_n, mode == "raw")
+        self.submodules.es2 = _S6HDMIOutEncoderSerializer(pads.data2_p, pads.data2_n, mode == "raw")
+
+        if mode == "raw":
+            self.comb += [
+                sink.ready.eq(1),
+                self.es0.data.eq(sink.c0),
+                self.es1.data.eq(sink.c1),
+                self.es2.data.eq(sink.c2)
+            ]
+        else:
+            self.comb += [
+                sink.ready.eq(1),
+                self.es0.d.eq(sink.b),
+                self.es1.d.eq(sink.g),
+                self.es2.d.eq(sink.r),
+                self.es0.c.eq(Cat(sink.hsync, sink.vsync)),
+                self.es1.c.eq(0),
+                self.es2.c.eq(0),
+                self.es0.de.eq(sink.de),
+                self.es1.de.eq(sink.de),
+                self.es2.de.eq(sink.de)
+            ]
