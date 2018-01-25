@@ -52,11 +52,20 @@ class EDID(Module, AutoCSR):
         _sda_drv_reg = Signal()
         _sda_i_async = Signal()
         self.sync += _sda_drv_reg.eq(sda_drv)
-        self.specials += [
-            MultiReg(pads.scl, scl_raw),
-            Tristate(pads.sda, 0, _sda_drv_reg, _sda_i_async),
-            MultiReg(_sda_i_async, sda_raw)
-        ]
+
+        pad_scl = getattr(pads, "scl")
+        if hasattr(pad_scl, "inverted"):
+            self.specials += [
+                MultiReg(~pads.scl, scl_raw),
+                Tristate(pads.sda, 0, _sda_drv_reg, _sda_i_async),
+                MultiReg(_sda_i_async, sda_raw)
+            ]
+        else:
+            self.specials += [
+                MultiReg(pads.scl, scl_raw),
+                Tristate(pads.sda, 0, _sda_drv_reg, _sda_i_async),
+                MultiReg(_sda_i_async, sda_raw)
+            ]
 
         # for debug
         self.scl = scl_raw
