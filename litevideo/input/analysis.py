@@ -23,6 +23,9 @@ class SyncPolarity(Module):
         self.r = Signal(8)
         self.g = Signal(8)
         self.b = Signal(8)
+        self.c0 = Signal(10)
+        self.c1 = Signal(10)
+        self.c2 = Signal(10)
 
         # # #
 
@@ -43,6 +46,9 @@ class SyncPolarity(Module):
             self.r.eq(self.data_in2.d),
             self.g.eq(self.data_in1.d),
             self.b.eq(self.data_in0.d),
+            self.c0.eq(self.data_in0.raw),
+            self.c1.eq(self.data_in1.raw),
+            self.c2.eq(self.data_in2.raw),
 
             de_r.eq(de),
             If(de_r & ~de,

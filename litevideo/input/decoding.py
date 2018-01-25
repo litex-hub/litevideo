@@ -18,6 +18,7 @@ class Decoding(Module):
                 self.output.de.eq(0),
                 self.output.c.eq(i)
             )
+        self.sync.pix += self.output.raw.eq(self.input)
         self.sync.pix += self.output.d[0].eq(self.input[0] ^ self.input[9])
         for i in range(1, 8):
             self.sync.pix += self.output.d[i].eq(self.input[i] ^

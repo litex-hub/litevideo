@@ -9,4 +9,4 @@ control_tokens = [
     0b1010101011,  #  1   1
 ]
 
-channel_layout = [("d", 8), ("c", 2), ("de", 1)]
+channel_layout = [("raw", 10), ("d", 8), ("c", 2), ("de", 1)]
