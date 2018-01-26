@@ -242,7 +242,7 @@ class _S6HDMIOutEncoderSerializer(Module):
 class S6HDMIOutPHY(Module):
     def __init__(self, pads, mode):
         self.serdesstrobe = Signal()
-        self.sink = sink = stream.Endpoint(phy_layout())
+        self.sink = sink = stream.Endpoint(phy_layout(mode))
 
         # # #
 
