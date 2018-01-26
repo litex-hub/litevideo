@@ -246,9 +246,9 @@ class S6HDMIOutPHY(Module):
 
         # # #
 
-        self.submodules.es0 = _S6HDMIOutEncoderSerializer(pads.data0_p, pads.data0_n, mode == "raw")
-        self.submodules.es1 = _S6HDMIOutEncoderSerializer(pads.data1_p, pads.data1_n, mode == "raw")
-        self.submodules.es2 = _S6HDMIOutEncoderSerializer(pads.data2_p, pads.data2_n, mode == "raw")
+        self.submodules.es0 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data0_p, pads.data0_n, mode == "raw")
+        self.submodules.es1 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data1_p, pads.data1_n, mode == "raw")
+        self.submodules.es2 = _S6HDMIOutEncoderSerializer(self.serdesstrobe, pads.data2_p, pads.data2_n, mode == "raw")
 
         if mode == "raw":
             self.comb += [
