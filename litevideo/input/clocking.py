@@ -7,7 +7,6 @@ from litex.soc.interconnect.csr import *
 
 class S6Clocking(Module, AutoCSR):
     def __init__(self, pads, clkin_freq=None):
-        assert clk_polarity == 0
         self._pll_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
 
