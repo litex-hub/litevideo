@@ -13,10 +13,26 @@ clocking_cls = {
     "xc7" : S7HDMIOutClocking,
 }
 
-phy_cls = {
+hdmi_phy_cls = {
     "xc6" : S6HDMIOutPHY,
     "xc7" : S7HDMIOutPHY
 }
+
+class VGAPHY(Module):
+    def __init__(self, mode):
+        assert mode != "raw"
+        self.sink = stream.Endpoint(phy_layout(mode))
+
+        # # #
+
+        self.comb += [
+            pads_vga.hsync_n.eq(~self.sink.hsync),
+            pads_vga.vsync_n.eq(~self.sink.vsync),
+            pads_vga.r.eq(self.sink.r),
+            pads_vga.g.eq(self.sink.g),
+            pads_vga.b.eq(self.sink.b),
+            pads_vga.psave_n.eq(1)
+        ]
 
 
 class Driver(Module, AutoCSR):
@@ -35,7 +51,12 @@ class Driver(Module, AutoCSR):
         self.submodules.clocking = clocking_cls[family](pads, external_clocking)
 
         # phy
-        self.submodules.hdmi_phy = phy_cls[family](pads, mode)
-        if hasattr(self.hdmi_phy, "serdesstrobe"):
-            self.comb += self.hdmi_phy.serdesstrobe.eq(self.clocking.serdesstrobe)
-        self.comb += sink.connect(self.hdmi_phy.sink)
+        vga = hasattr("pads", "hsync_n")
+        if vga:
+            self.submodules.vga_phy = VGA(pads, mode)
+            self.comb += sink.connect(self.hdmi_phy.sink)
+        else:
+            self.submodules.hdmi_phy = hdmiphy_cls[family](pads, mode)
+            if hasattr(self.hdmi_phy, "serdesstrobe"):
+                self.comb += self.hdmi_phy.serdesstrobe.eq(self.clocking.serdesstrobe)
+                self.comb += sink.connect(self.hdmi_phy.sink)
