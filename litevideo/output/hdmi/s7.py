@@ -131,8 +131,11 @@ class S7HDMIOutClocking(Module, AutoCSR):
             )
         ]
         self.comb += self.cd_pix.rst.eq(~mmcm_locked)
-        self.submodules.clk_gen = S7HDMIOutEncoderSerializer(pads.clk_p, pads.clk_n, bypass_encoder=True)
-        self.comb += self.clk_gen.data.eq(Signal(10, reset=0b0000011111))
+        if hasattr(pads, "clk_p"):
+            self.submodules.clk_gen = S7HDMIOutEncoderSerializer(pads.clk_p, pads.clk_n, bypass_encoder=True)
+            self.comb += self.clk_gen.data.eq(Signal(10, reset=0b0000011111))
+        else:
+            self.comb += pads.clk.eq(ClockSignal("pix")) # FIXME: use primitive (ODDR2?)
 
 
 class S7HDMIOutPHY(Module):
