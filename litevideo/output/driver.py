@@ -28,9 +28,9 @@ class VGAPHY(Module):
         self.comb += [
             pads.hsync_n.eq(~self.sink.hsync),
             pads.vsync_n.eq(~self.sink.vsync),
-            pads.r.eq(self.sink.r),
-            pads.g.eq(self.sink.g),
-            pads.b.eq(self.sink.b),
+            pads.r.eq(self.sink.r[8-len(pads.r):]),
+            pads.g.eq(self.sink.g[8-len(pads.g):]),
+            pads.b.eq(self.sink.b[8-len(pads.b):]),
             pads.psave_n.eq(1)
         ]
 
