@@ -125,6 +125,7 @@ class S7Clocking(Module, AutoCSR):
         self.specials += Instance("BUFG", i_I=self.clk_input, o_O=clk_input_bufr)
 
         mmcm_fb = Signal()
+        mmcm_fb_o = Signal()
         mmcm_locked = Signal()
         mmcm_locked_o = Signal()
         mmcm_clk0 = Signal()
@@ -141,7 +142,7 @@ class S7Clocking(Module, AutoCSR):
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=13.468, #6.734
                 p_CLKFBOUT_MULT_F=10.0, p_CLKFBOUT_PHASE=180.000, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=clk_input_bufr, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
+                i_CLKIN1=clk_input_bufr, i_CLKFBIN=mmcm_fb_o, o_CLKFBOUT=mmcm_fb,
 
                 # pix clk
                 p_CLKOUT0_DIVIDE_F=10, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
@@ -162,19 +163,20 @@ class S7Clocking(Module, AutoCSR):
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
             Instance("BUFR", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
             Instance("BUFIO",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
+            Instance("BUFG", i_I=mmcm_fb, o_O=mmcm_fb_o), # compensate this delay to minimize phase offset with slave
         ]
 
-### ALSO TRY the 10x setting!!!
         mmcm_fb_o = Signal()
         mmcm_clk0_o = Signal()
         self.specials += [
             Instance("MMCME2_ADV",
-                p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked_o,
+                p_BANDWIDTH="LOW", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked_o,
 
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.734,
                 p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=self.cd_pix.clk, i_CLKFBIN=mmcm_fb_o, o_CLKFBOUT=mmcm_fb_o,
+                i_CLKIN1=mmcm_clk0,  # uncompesated delay for best phase match between master/slave
+                i_CLKFBIN=mmcm_fb_o, o_CLKFBOUT=mmcm_fb_o,
 
                 # pix clk
                 p_CLKOUT0_DIVIDE_F=5, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
