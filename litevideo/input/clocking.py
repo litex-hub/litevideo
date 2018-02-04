@@ -90,16 +90,22 @@ class S7Clocking(Module, AutoCSR):
 
         # DRP
         self._mmcm_read = CSR()
+        self._mmcm_read_o = CSR()
         self._mmcm_write = CSR()
+        self._mmcm_write_o = CSR()
         self._mmcm_drdy = CSRStatus()
+        self._mmcm_drdy_o = CSRStatus()
         self._mmcm_adr = CSRStorage(7)
         self._mmcm_dat_w = CSRStorage(16)
         self._mmcm_dat_r = CSRStatus(16)
+        self._mmcm_dat_o_r = CSRStatus(16)
 
         self.locked = Signal()
         self.clock_domains.cd_pix = ClockDomain()
+        self.clock_domains.cd_pix_o = ClockDomain()
         self.clock_domains.cd_pix1p25x = ClockDomain()
         self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
+        self.clock_domains.cd_pix5x_o = ClockDomain(reset_less=True)
 
         # # #
 
@@ -116,22 +122,25 @@ class S7Clocking(Module, AutoCSR):
                 name="hdmi_in_ibufds",
                 i_I=pads.clk_p, i_IB=pads.clk_n,
                 o_O=self.clk_input)
-        self.specials += Instance("BUFR", i_I=self.clk_input, o_O=clk_input_bufr)
+        self.specials += Instance("BUFG", i_I=self.clk_input, o_O=clk_input_bufr)
 
         mmcm_fb = Signal()
         mmcm_locked = Signal()
+        mmcm_locked_o = Signal()
         mmcm_clk0 = Signal()
         mmcm_clk1 = Signal()
         mmcm_clk2 = Signal()
+        mmcm_clk2_o = Signal()
         mmcm_drdy = Signal()
+        mmcm_drdy_o = Signal()
 
         self.specials += [
             Instance("MMCME2_ADV",
                 p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked,
 
                 # VCO
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=1e9/clkin_freq,
-                p_CLKFBOUT_MULT_F=10.0*(148.5e6/clkin_freq), p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=13.468, #6.734
+                p_CLKFBOUT_MULT_F=10.0, p_CLKFBOUT_PHASE=180.000, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=clk_input_bufr, i_CLKFBIN=mmcm_fb, o_CLKFBOUT=mmcm_fb,
 
                 # pix clk
@@ -154,6 +163,36 @@ class S7Clocking(Module, AutoCSR):
             Instance("BUFR", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
             Instance("BUFIO",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
         ]
+
+### ALSO TRY the 10x setting!!!
+        mmcm_fb_o = Signal()
+        mmcm_clk0_o = Signal()
+        self.specials += [
+            Instance("MMCME2_ADV",
+                p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked_o,
+
+                # VCO
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.734,
+                p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                i_CLKIN1=self.cd_pix.clk, i_CLKFBIN=mmcm_fb_o, o_CLKFBOUT=mmcm_fb_o,
+
+                # pix clk
+                p_CLKOUT0_DIVIDE_F=5, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
+                p_CLKOUT2_DIVIDE=1, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2_o,
+
+                     # DRP
+                i_DCLK=ClockSignal(),
+                i_DWE=self._mmcm_write_o.re,
+                i_DEN=self._mmcm_read_o.re | self._mmcm_write_o.re,
+                o_DRDY=mmcm_drdy_o,
+                i_DADDR=self._mmcm_adr.storage,
+                i_DI=self._mmcm_dat_w.storage,
+                o_DO=self._mmcm_dat_o_r.status
+                     ),
+            Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_pix_o.clk),
+            Instance("BUFIO", i_I=mmcm_clk2_o, o_O=self.cd_pix5x_o.clk),
+        ]
+
         self.sync += [
             If(self._mmcm_read.re | self._mmcm_write.re,
                 self._mmcm_drdy.status.eq(0)
@@ -161,10 +200,18 @@ class S7Clocking(Module, AutoCSR):
                 self._mmcm_drdy.status.eq(1)
             )
         ]
+        self.sync += [
+            If(self._mmcm_read_o.re | self._mmcm_write_o.re,
+                self._mmcm_drdy_o.status.eq(0)
+            ).Elif(mmcm_drdy_o,
+                self._mmcm_drdy_o.status.eq(1)
+            )
+        ]
         self.specials += MultiReg(mmcm_locked, self.locked, "sys")
         self.comb += self._locked.status.eq(self.locked)
 
         self.specials += [
             AsyncResetSynchronizer(self.cd_pix, ~mmcm_locked),
+            AsyncResetSynchronizer(self.cd_pix_o, ~mmcm_locked_o),
             AsyncResetSynchronizer(self.cd_pix1p25x, ~mmcm_locked),
         ]
