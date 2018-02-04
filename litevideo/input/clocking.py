@@ -140,16 +140,16 @@ class S7Clocking(Module, AutoCSR):
                 p_BANDWIDTH="OPTIMIZED", i_RST=self._mmcm_reset.storage, o_LOCKED=mmcm_locked,
 
                 # VCO
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=13.468, #6.734
-                p_CLKFBOUT_MULT_F=10.0, p_CLKFBOUT_PHASE=180.000, p_DIVCLK_DIVIDE=1,
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=7.2, #6.734
+                p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=clk_input_bufr, i_CLKFBIN=mmcm_fb_o, o_CLKFBOUT=mmcm_fb,
 
                 # pix clk
-                p_CLKOUT0_DIVIDE_F=10, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
+                p_CLKOUT0_DIVIDE_F=5, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0,
                 # pix1p25x clk
-                p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1,
+                p_CLKOUT1_DIVIDE=4, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1,
                 # pix5x clk
-                p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2,
+                p_CLKOUT2_DIVIDE=1, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2,
 
                 # DRP
                 i_DCLK=ClockSignal(),
