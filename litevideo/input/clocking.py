@@ -21,6 +21,7 @@ class S6Clocking(Module, AutoCSR):
         self.locked = Signal()
         self.serdesstrobe = Signal()
         self.clock_domains._cd_pix = ClockDomain()
+        self.clock_domains._cd_pix_o = ClockDomain()
         self.clock_domains._cd_pix2x = ClockDomain()
         self.clock_domains._cd_pix10x = ClockDomain(reset_less=True)
 
@@ -81,6 +82,7 @@ class S6Clocking(Module, AutoCSR):
             AsyncResetSynchronizer(self._cd_pix, ~locked_async),
             AsyncResetSynchronizer(self._cd_pix2x, ~locked_async),
         ]
+        self.comb += self._cd_pix_o.clk.eq(self._cd_pix.clk)
 
 
 class S7Clocking(Module, AutoCSR):
