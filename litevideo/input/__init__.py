@@ -26,10 +26,10 @@ datacapture_cls = {
 
 class HDMIIn(Module, AutoCSR):
     def __init__(self, pads, dram_port=None, n_dma_slots=2, fifo_depth=512, device="xc6",
-        default_edid=_default_edid, clkin_freq=148.5e6):
+        default_edid=_default_edid, clkin_freq=148.5e6, split_mmcm=False):
         if hasattr(pads, "scl"):
             self.submodules.edid = EDID(pads, default_edid)
-        self.submodules.clocking = clocking_cls[device](pads, clkin_freq)
+        self.submodules.clocking = clocking_cls[device](pads, clkin_freq, split_mmcm)
 
         for datan in range(3):
             name = "data" + str(datan)
