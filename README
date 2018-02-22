@@ -3,8 +3,8 @@
          / /__/ / __/ -_) |/ / / _  / -_) _ \
         /____/_/\__/\__/|___/_/\_,_/\__/\___/
 
-          Copyright 2016=2017 / EnjoyDigital
-          Copyright 2016-2017 / TimVideos.us
+          Copyright 2016-2018 / EnjoyDigital
+          Copyright 2016-2018 / TimVideos.us
 
       Small footprint and configurable video cores
                  powered by LiteX
@@ -16,9 +16,6 @@ LiteVideo provides small footprint and configurable video cores.
 LiteVideo is part of LiteX libraries whose aims are to lower entry level of
 complex FPGA cores by providing simple, elegant and efficient implementations
 of components used in today's SoC such as Ethernet, SATA, PCIe, SDRAM Controller...
-
-The core uses simple and specific streaming buses and will provides in the future
-adapters to use standardized AXI or Avalon-ST streaming buses.
 
 Since Python is used to describe the HDL, the core is highly and easily
 configurable.
@@ -56,6 +53,9 @@ LiteVideo is already used in commercial and open-source designs:
 - add more documentation
 - ... See below Support and consulting :)
 
+If you want to support these features, please contact us at florent [AT]
+enjoy-digital.fr.
+
 [> Getting started
 ------------------
 1. Install Python3 and your vendor's software
@@ -66,7 +66,15 @@ LiteVideo is already used in commercial and open-source designs:
   python3 setup.py develop
   cd ..
 
-3. TODO: add example design(s)
+3. TODO: add/describe example design(s)
+
+[> Tests
+--------
+Unit tests are available in ./test/.
+To run all the unit tests:
+  ./setup.py test
+Tests can also be run individually:
+  python3 -m unittest test.test_name
 
 [> License
 ----------
