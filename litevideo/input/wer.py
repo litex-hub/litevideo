@@ -1,8 +1,8 @@
 from functools import reduce
 from operator import or_, add
 
-from litex.gen import *
-from litex.gen.genlib.cdc import PulseSynchronizer
+from migen import *
+from migen.genlib.cdc import PulseSynchronizer
 
 from litex.soc.interconnect.csr import *
 

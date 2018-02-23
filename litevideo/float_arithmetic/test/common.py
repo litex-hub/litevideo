@@ -5,7 +5,8 @@ import copy
 import numpy as np
 
 
-from litex.gen import *
+from migen import *
+
 from litex.soc.interconnect.stream import *
 
 

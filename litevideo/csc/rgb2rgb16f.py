@@ -1,6 +1,7 @@
 # rgb2rgb16f
 
-from litex.gen import *
+from migen import *
+
 from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
@@ -9,8 +10,8 @@ from litevideo.float_arithmetic.common import LeadOne
 
 def lookup_table(pix_val):
     '''
-    Contents of lut list generated using int2float functions from 
-    litex.csc.test.common 
+    Contents of lut list generated using int2float functions from
+    litex.csc.test.common
     '''
     lut = [
             0,  7168,  8192,  8704,  9216,  9472,  9728,  9984,
@@ -51,9 +52,9 @@ def lookup_table(pix_val):
 
 @CEInserter()
 class PIX2PIXFLUT(Module):
-    """ 
-    Converts a 8 bit unsigned int represented by a pixel in 
-    the range [0-255] to a 16 bit half precision floating point 
+    """
+    Converts a 8 bit unsigned int represented by a pixel in
+    the range [0-255] to a 16 bit half precision floating point
     pix_number defined in the range [0-1], using a look table
     """
     latency = 1
@@ -75,13 +76,13 @@ class PIX2PIXFLUT(Module):
         # Stage 1
         for j in range(256):
             self.sync += If(sink.pix == j, source.pixf.eq(lookup_table(j))) # FIXME (use case or memory)
-        
+
 @CEInserter()
 class PIX2PIXFDatapath(Module):
-    """ 
-    Converts a 8 bit unsigned int represented by a pixel in 
-    the range [0-255] to a 16 bit half precision floating point 
-    pix_number defined in the range [0-1] 
+    """
+    Converts a 8 bit unsigned int represented by a pixel in
+    the range [0-255] to a 16 bit half precision floating point
+    pix_number defined in the range [0-1]
     """
     latency = 2
     def __init__(self, pix_w, pixf_w):

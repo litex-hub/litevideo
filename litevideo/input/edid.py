@@ -1,8 +1,8 @@
-from litex.gen import *
-from litex.gen.fhdl.specials import Tristate
-from litex.gen.genlib.cdc import MultiReg
-from litex.gen.genlib.fsm import FSM, NextState
-from litex.gen.genlib.misc import chooser
+from migen import *
+from migen.fhdl.specials import Tristate
+from migen.genlib.cdc import MultiReg
+from migen.genlib.fsm import FSM, NextState
+from migen.genlib.misc import chooser
 
 from litex.soc.interconnect.csr import CSRStorage, CSRStatus, AutoCSR
 

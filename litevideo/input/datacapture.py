@@ -1,7 +1,7 @@
-from litex import *
-from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
-from litex.gen.genlib.misc import WaitTimer
-from litex.gen.genlib.cdc import MultiReg, Gearbox
+from migen import *
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.misc import WaitTimer
+from migen.genlib.cdc import MultiReg, Gearbox
 
 from litex.soc.interconnect.csr import *
 

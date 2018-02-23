@@ -1,4 +1,5 @@
-from litex.gen import *
+from migen import *
+
 from litex.soc.interconnect.csr import AutoCSR
 
 from litevideo.input.edid import EDID, _default_edid

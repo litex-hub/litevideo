@@ -1,4 +1,4 @@
-from litex.gen import *
+from migen import *
 
 from litevideo.input.common import control_tokens, channel_layout
 

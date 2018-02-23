@@ -1,10 +1,10 @@
 from functools import reduce
 from operator import or_, and_
 
-from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg
-from litex.gen.genlib.fifo import _inc
-from litex.gen.genlib.record import Record, layout_len
+from migen import *
+from migen.genlib.cdc import MultiReg
+from migen.genlib.fifo import _inc
+from migen.genlib.record import Record, layout_len
 
 from litex.soc.interconnect.csr import *
 

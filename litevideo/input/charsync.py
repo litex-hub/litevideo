@@ -1,8 +1,8 @@
 from functools import reduce
 from operator import or_
 
-from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg
+from migen import *
+from migen.genlib.cdc import MultiReg
 
 from litex.soc.interconnect.csr import *
 

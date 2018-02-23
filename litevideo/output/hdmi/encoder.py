@@ -1,7 +1,7 @@
 from functools import reduce
 from operator import add
 
-from litex.gen import *
+from migen import *
 
 control_tokens = [0b1101010100, 0b0010101011, 0b0101010100, 0b1010101011]
 

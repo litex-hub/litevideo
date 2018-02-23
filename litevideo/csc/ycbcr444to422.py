@@ -1,6 +1,7 @@
 # ycbcr444to422
 
-from litex.gen import *
+from migen import *
+
 from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *

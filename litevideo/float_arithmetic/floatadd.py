@@ -1,12 +1,12 @@
 '''
-FloatAddDatapath class: Add two floating point numbers in1 and in2, returns 
+FloatAddDatapath class: Add two floating point numbers in1 and in2, returns
 their output out in the same float16 format.
 
 FloatAdd class: Use the FloatAddDatapath above and generates a pipelined
 module implemented using five stage pipeline.
 '''
 
-from litex.gen import *
+from migen import *
 
 from litex.soc.interconnect.stream import *
 from litex.soc.interconnect.csr import *
@@ -37,7 +37,7 @@ class FloatAddDatapath(Module):
 
         in1_frac = Signal(10)
         in2_frac = Signal(10)
-        
+
         in1_mant = Signal(11)
         in2_mant = Signal(11)
 
@@ -57,8 +57,8 @@ class FloatAddDatapath(Module):
         # 00-0 Zero
         # 01-1 Inf
         # 10-2 Nan
-        # 11-3 Normal 
-        
+        # 11-3 Normal
+
         in1_stage1 = Signal(16)
         in2_stage1 = Signal(16)
 
@@ -75,16 +75,16 @@ class FloatAddDatapath(Module):
 
         self.comb += [
             If(in1_exp == 0,
-                in1_mant.eq(Cat(sink.in1[:10], 0)),     
-                in1_exp1.eq(sink.in1[10:15] + 1)       
+                in1_mant.eq(Cat(sink.in1[:10], 0)),
+                in1_exp1.eq(sink.in1[10:15] + 1)
             ).Else(
                 in1_mant.eq(Cat(sink.in1[:10], 1)),
                 in1_exp1.eq(sink.in1[10:15])
             ),
 
             If(in2_exp == 0,
-                in2_mant.eq(Cat(sink.in2[:10], 0)),     
-                in2_exp1.eq(sink.in2[10:15] + 1)       
+                in2_mant.eq(Cat(sink.in2[:10], 0)),
+                in2_exp1.eq(sink.in2[10:15] + 1)
             ).Else(
                 in2_mant.eq(Cat(sink.in2[:10], 1)),
                 in2_exp1.eq(sink.in2[10:15])
@@ -100,10 +100,10 @@ class FloatAddDatapath(Module):
 
         self.sync += [
             in1_minus_in2_exp.eq(in1_exp1 - in2_exp),
-            in1_frac_stage1.eq(in1_mant),   
-            in2_frac_stage1.eq(in2_mant),   
-            in1_exp_stage1.eq(in1_exp1),   
-            in2_exp_stage1.eq(in2_exp1),   
+            in1_frac_stage1.eq(in1_mant),
+            in2_frac_stage1.eq(in2_mant),
+            in1_exp_stage1.eq(in1_exp1),
+            in2_exp_stage1.eq(in2_exp1),
             in1_sign_stage1.eq(in1_sign),
             in2_sign_stage1.eq(in2_sign),
             out_status1.eq(3)
@@ -153,8 +153,8 @@ class FloatAddDatapath(Module):
             self.l1.datai.eq(in1_plus_in2_frac),
             leadone.eq(self.l1.leadone)
         ]
-        out_sign_stage4 = Signal(1)   
-        out_frac_stage4 = Signal(12)  
+        out_sign_stage4 = Signal(1)
+        out_frac_stage4 = Signal(12)
         out_exp_stage4 = Signal(5)
         out_4 = Signal(16)
         self.sync += [

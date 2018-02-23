@@ -1,12 +1,12 @@
 '''
-FloatMultDatapath class: Multiply two floating point numbers a and b, returns 
+FloatMultDatapath class: Multiply two floating point numbers a and b, returns
 their output c in the same float16 format.
 
-FloatMult class: Use the FloatMultDatapath above and generates a modules 
+FloatMult class: Use the FloatMultDatapath above and generates a modules
 implemented using five stage pipeline.
 '''
 
-from litex.gen import *
+from migen import *
 
 from litex.soc.interconnect.stream import *
 from litex.soc.interconnect.csr import *
@@ -57,8 +57,8 @@ class FloatMultDatapath(Module):
         # 00-0 Zero
         # 01-1 Inf
         # 10-2 Nan
-        # 11-3 Normal 
-        
+        # 11-3 Normal
+
         self.comb += [
             in1_frac.eq(sink.in1[:10]),
             in2_frac.eq(sink.in2[:10]),
@@ -72,20 +72,20 @@ class FloatMultDatapath(Module):
 
         self.sync += [
             If(in1_exp == 0,
-                in1_mant.eq(Cat(in1_frac, 0)),     
-                in1_exp1.eq(in1_exp + 1)       
+                in1_mant.eq(Cat(in1_frac, 0)),
+                in1_exp1.eq(in1_exp + 1)
             ).Else(
                 in1_mant.eq(Cat(in1_frac, 1)),
                 in1_exp1.eq(in1_exp)
             ),
 
             If(in2_exp == 0,
-                in2_mant.eq(Cat(in2_frac, 0)),     
-                in2_exp1.eq(in2_exp + 1)       
+                in2_mant.eq(Cat(in2_frac, 0)),
+                in2_exp1.eq(in2_exp + 1)
             ).Else(
                 in2_mant.eq(Cat(in2_frac, 1)),
                 in2_exp1.eq(in2_exp)
-            ),  
+            ),
 
             If(((in1_exp == 0) & (in1_frac == 0)),
                 out_status1.eq(0)
@@ -100,7 +100,7 @@ class FloatMultDatapath(Module):
         # Multiply fractions and add exponents
         out_mult = Signal(22)
         out_exp = Signal((7, True))
-        out_status2 = Signal(2)        
+        out_status2 = Signal(2)
 
         self.sync += [
             out_mult.eq(in1_mant * in2_mant),
@@ -160,7 +160,7 @@ class FloatMult(PipelinedActor, Module, AutoCSR):
     def __init__(self, dw=16):
         self.sink = sink = stream.Endpoint(EndpointDescription(in_layout(dw)))
         self.source = source = stream.Endpoint(EndpointDescription(out_layout(dw)))
-        
+
         # # #
 
         self.submodules.datapath = FloatMultDatapath(dw)

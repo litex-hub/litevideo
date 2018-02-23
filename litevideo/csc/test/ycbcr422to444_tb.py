@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from litex.gen import *
+from migen import *
 from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
@@ -23,7 +23,7 @@ for i in range(len(reference_cb_cr)//2):
     reference_cr.append(cr)
 
 sink_y = reference_y
-sink_cb_cr = reference_cb_cr 
+sink_cb_cr = reference_cb_cr
 
 source_y = []
 source_cb = []

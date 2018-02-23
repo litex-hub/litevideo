@@ -1,6 +1,7 @@
 # rgb16f2rgb
 
-from litex.gen import *
+from migen import *
+
 from litex.soc.interconnect.stream import *
 
 from litevideo.csc.common import *
@@ -8,9 +9,9 @@ from litevideo.csc.common import *
 
 @CEInserter()
 class PIXF2PIXDatapath(Module):
-    """ 
-    Converts a 16 bit half precision floating point 
-    number defined in the range [0-1] to 8 bit unsigned 
+    """
+    Converts a 16 bit half precision floating point
+    number defined in the range [0-1] to 8 bit unsigned
     int represented by a pixel in the range [0-255]
     """
     latency = 2
@@ -36,16 +37,16 @@ class PIXF2PIXDatapath(Module):
         frac = Signal(11)
         exp = Signal(5)
         exp_offset = Signal(5)
-        
+
         self.sync += [
-            exp_offset.eq(15 - sink.pixf[10:15] - 1),    
+            exp_offset.eq(15 - sink.pixf[10:15] - 1),
             frac[:10].eq(sink.pixf[:10]),
             frac[10].eq(1)
         ]
 
         # Stage 2
         # Right shift frac by exp_offset
-        # Most significant 8 bits of frac assigned to uint8 pix 
+        # Most significant 8 bits of frac assigned to uint8 pix
         self.sync += source.pix.eq( (frac >> exp_offset)[3:])
 
 

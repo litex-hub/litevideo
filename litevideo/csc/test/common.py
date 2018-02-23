@@ -3,7 +3,8 @@ from PIL import Image
 import random
 from copy import deepcopy
 
-from litex.gen import *
+from migen import *
+
 from litex.soc.interconnect.stream import *
 
 class RAWImage:
@@ -189,21 +190,21 @@ class RAWImage:
         return self.rf, self.gf, self.bf
 
 def int2float(x):
-    ''' 
-    Converts a 8 bit unsigned int to 16 bit half precision floating 
+    '''
+    Converts a 8 bit unsigned int to 16 bit half precision floating
     point represntation.Expected input is in the range [0-255]
-    Output is an 16 bit integer whose bit representation correspond 
+    Output is an 16 bit integer whose bit representation correspond
     to half precision float format.
-    The value of float output is in the range [0-1] 
+    The value of float output is in the range [0-1]
     (higher precision in this range)
     '''
     if x==0:
         return 0
     else:
         y = bin(x)[2:].zfill(8)     # Unpack in string
-        for i in range(len(y)):     # Leading one detector 
-            if y[i] == '1':         
-                shift_val = i   
+        for i in range(len(y)):     # Leading one detector
+            if y[i] == '1':
+                shift_val = i
                 break
 
         sign = '0'
@@ -214,14 +215,14 @@ def int2float(x):
         return z
 
 def float2int(x):
-    ''' 
+    '''
     Converts a 16 bit half precision floating point represntation
     to 8 bit unsigned int.
-    Output is an 16 bit integer whose bit representation correspond 
-    to half precision float format.    
-    Input is in the range [0-1] 
+    Output is an 16 bit integer whose bit representation correspond
+    to half precision float format.
+    Input is in the range [0-1]
     Expected output is in the corresponding range [0-255]
-        
+
     '''
     if x==0:
         return 0
