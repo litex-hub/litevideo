@@ -6,7 +6,8 @@ from litex.soc.interconnect.csr import *
 
 
 class S6Clocking(Module, AutoCSR):
-    def __init__(self, pads, clkin_freq=None):
+    def __init__(self, pads, clkin_freq=None, split_clocking=None):
+        assert not bool(split_clocking), "Can't use split_clocking with S6Clocking"
         self._pll_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
 
@@ -86,7 +87,7 @@ class S6Clocking(Module, AutoCSR):
 
 
 class S7Clocking(Module, AutoCSR):
-    def __init__(self, pads, clkin_freq=148.5e6, split_mmcm=False):
+    def __init__(self, pads, clkin_freq=148.5e6, split_clocking=False):
         self._mmcm_reset = CSRStorage(reset=1)
         self._locked = CSRStatus()
 
@@ -103,7 +104,7 @@ class S7Clocking(Module, AutoCSR):
         self.clock_domains.cd_pix1p25x = ClockDomain()
         self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
 
-        if split_mmcm:
+        if split_clocking:
             self._mmcm_write_o = CSR()
             self._mmcm_read_o = CSR()
             self._mmcm_dat_o_r = CSRStatus(16)
@@ -136,7 +137,7 @@ class S7Clocking(Module, AutoCSR):
         mmcm_drdy = Signal()
         mmcm_fb_o = Signal() # this should be harmless in single domain, but essential for split
 
-        if split_mmcm:
+        if split_clocking:
             mmcm_locked_o = Signal()
             mmcm_clk2_o = Signal()
             mmcm_drdy_o = Signal()
@@ -172,7 +173,7 @@ class S7Clocking(Module, AutoCSR):
             Instance("BUFG", i_I=mmcm_fb, o_O=mmcm_fb_o), # compensate this delay to minimize phase offset with slave
         ]
 
-        if split_mmcm:
+        if split_clocking:
             mmcm_fb2_o = Signal()
             mmcm_clk0_o = Signal()
             self.specials += [
@@ -210,7 +211,7 @@ class S7Clocking(Module, AutoCSR):
             )
         ]
 
-        if split_mmcm:
+        if split_clocking:
             self.sync += [
                 If(self._mmcm_read_o.re | self._mmcm_write_o.re,
                     self._mmcm_drdy_o.status.eq(0)
@@ -227,7 +228,7 @@ class S7Clocking(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_pix1p25x, ~mmcm_locked),
         ]
 
-        if split_mmcm:
+        if split_clocking:
             self.specials += [
                 AsyncResetSynchronizer(self.cd_pix_o, ~mmcm_locked_o),
             ]
