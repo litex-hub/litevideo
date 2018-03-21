@@ -99,6 +99,8 @@ class TimingGenerator(Module):
 
         hcounter = Signal(hbits)
         vcounter = Signal(vbits)
+        self.hcounter = hcounter
+        self.vcounter = vcounter
 
         self.comb += [
             If(sink.valid,
@@ -154,7 +156,7 @@ class VideoOutCore(Module, AutoCSR):
 
     Generates a video stream from memory.
     """
-    def __init__(self, dram_port, mode="rgb", fifo_depth=512):
+    def __init__(self, dram_port, mode="rgb", fifo_depth=512, genlock=False, genlock_signal=None):
         try:
             dw = modes_dw[mode]
         except:
@@ -176,9 +178,13 @@ class VideoOutCore(Module, AutoCSR):
         self.submodules.dma = dma = ClockDomainsRenamer(cd)(DMAReader(dram_port, fifo_depth))
 
         # ctrl path
+        if genlock:
+            self.comb += timing.sink.valid.eq(initiator.source.valid & ~genlock_signal)
+        else:
+            self.comb += timing.sink.valid.eq(initiator.source.valid)
+
         self.comb += [
             # dispatch initiator parameters to timing & dma
-            timing.sink.valid.eq(initiator.source.valid),
             dma.sink.valid.eq(initiator.source.valid),
             initiator.source.ready.eq(timing.sink.ready),
 
