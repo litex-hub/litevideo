@@ -26,19 +26,21 @@ class SyncPolarity(Module):
         self.c0 = Signal(10)
         self.c1 = Signal(10)
         self.c2 = Signal(10)
+        self.de_rising = Signal()
 
         # # #
 
-        de = self.data_in0.de
-        de_r = Signal()
-        c = self.data_in0.c
-        c_polarity = Signal(2)
-        c_out = Signal(2)
+        self.de_int = self.data_in0.de
+        self.de_r = Signal()
+        self.c = self.data_in0.c
+        self.c_polarity = Signal(2)
+        self.c_out = Signal(2)
 
         self.comb += [
-            self.de.eq(de_r),
-            self.hsync.eq(c_out[0]),
-            self.vsync.eq(c_out[1])
+            self.de.eq(self.de_r),
+            self.hsync.eq(self.c_out[0]),
+            self.vsync.eq(self.c_out[1]),
+            self.de_rising.eq(self.de_r & ~self.de_int),
         ]
 
         self.sync.pix += [
@@ -47,12 +49,13 @@ class SyncPolarity(Module):
             self.g.eq(self.data_in1.d),
             self.b.eq(self.data_in0.d),
 
-            de_r.eq(de),
-            If(de_r & ~de,
-                c_polarity.eq(c),
-                c_out.eq(0)
+            self.de_r.eq(self.de_int),
+
+            If(self.de_rising,
+                self.c_polarity.eq(self.c),
+                self.c_out.eq(0)
             ).Else(
-                c_out.eq(c ^ c_polarity)
+                self.c_out.eq(self.c ^ self.c_polarity)
             )
         ]
 
