@@ -163,7 +163,7 @@ class S7Clocking(Module, AutoCSR):
                 o_DO=self._mmcm_dat_r.status
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
-            Instance("BUFR", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
+            Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
             Instance("BUFIO",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
             Instance("BUFG", i_I=mmcm_fb, o_O=mmcm_fb_o), # compensate this delay to minimize phase offset with slave
         ]
@@ -189,13 +189,13 @@ class S7Clocking(Module, AutoCSR):
 
                     # VCO
                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.734,
-                    p_CLKFBOUT_MULT=5, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                    p_CLKFBOUT_MULT=10, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1, # PLL range is 800-1866 MHz, unlike MMCM which is 600-1440 MHz
                     i_CLKIN1=mmcm_clk0,  # uncompensated delay for best phase match between master/slave
                     i_CLKFBIN=mmcm_fb2_o, o_CLKFBOUT=mmcm_fb2_o,
 
                     # pix clk
-                    p_CLKOUT0_DIVIDE=5, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
-                    p_CLKOUT2_DIVIDE=1, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2_o,
+                    p_CLKOUT0_DIVIDE=10, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
+                    p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2_o,
 
                     # DRP
                     i_DCLK=ClockSignal(),
