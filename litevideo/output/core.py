@@ -43,7 +43,7 @@ class DMAReader(Module, AutoCSR):
 
     Generates the data stream of a frame.
     """
-    def __init__(self, dram_port, fifo_depth=512):
+    def __init__(self, dram_port, fifo_depth=512, genlock_stream=None):
         self.sink = sink = stream.Endpoint(frame_dma_layout)  # "inputs" are the DMA frame parameters
         self.source = source = stream.Endpoint([("data", dram_port.dw)])  # "output" is the data stream
 
@@ -56,29 +56,66 @@ class DMAReader(Module, AutoCSR):
         base = Signal(dram_port.aw)
         length = Signal(dram_port.aw)
         offset = Signal(dram_port.aw)
+        self.delay_base = CSRStorage(32)
         self.comb += [
             base.eq(sink.base[shift:]),   # ignore the lower bits of the base + length to match the DMA's expectations
-            length.eq(sink.length[shift:]) # need to noodle on what that expectation is, exactly...
+            length.eq(sink.length[shift:]), # need to noodle on what that expectation is, exactly...
         ]
 
-        fsm.act("IDLE",
-            NextValue(offset, 0),
-            If(sink.valid,   # if our parameters are valid, start reading
-                NextState("READ")
-            ).Else(
-                dram_port.flush.eq(1),
-            )
-        )
-        fsm.act("READ",
-            self.dma.sink.valid.eq(1),  # tell the DMA reader that we've got a valid address for it
-            If(self.dma.sink.ready, # if the LiteDRAMDMAReader shows it's ready for an address (e.g. taken the current address)
-                NextValue(offset, offset + 1), # increment the offset
-                If(offset == (length - 1),  # at the end...
-                    self.sink.ready.eq(1),  # indicate we're ready for more parameters
-                    NextState("IDLE")
+        if genlock_stream != None:
+            self.v = Signal()
+            self.v_r = Signal()
+            self.sof = Signal()
+            self.sync += [
+                self.v.eq(genlock_stream.vsync),
+                self.v_r.eq(self.v),
+                self.sof.eq(self.v & ~self.v_r),
+            ]
+
+        if genlock_stream == None:
+            fsm.act("IDLE",
+                NextValue(offset, 0),
+                If(sink.valid,  # if our parameters are valid, start reading
+                       NextState("READ")
+                    ).Else(
+                        dram_port.flush.eq(1),
+                    )
+                )
+            fsm.act("READ",
+                self.dma.sink.valid.eq(1),  # tell the DMA reader that we've got a valid address for it
+                If(self.dma.sink.ready, # if the LiteDRAMDMAReader shows it's ready for an address (e.g. taken the current address)
+                    NextValue(offset, offset + 1), # increment the offset
+                    If(offset == (length - 1),  # at the end...
+                        self.sink.ready.eq(1),  # indicate we're ready for more parameters
+                        NextState("IDLE")
+                    )
                 )
             )
-        )
+        else:
+            fsm.act("IDLE",
+                NextValue(offset, self.delay_base.storage),
+                If(sink.valid,  # if our parameters are valid, start reading
+                       NextState("READ")
+                    ).Else(
+                        dram_port.flush.eq(1),
+                    )
+                )
+            fsm.act("READ",
+                self.dma.sink.valid.eq(1),  # tell the DMA reader that we've got a valid address for it
+                If(self.dma.sink.ready, # if the LiteDRAMDMAReader shows it's ready for an address (e.g. taken the current address)
+                    NextValue(offset, offset + 1), # increment the offset
+                    If(offset == (length - 1),  # at the end...
+                        self.sink.ready.eq(1),  # indicate we're ready for more parameters
+                        NextState("WAIT_SOF")
+                    )
+                )
+            )
+            fsm.act("WAIT_SOF",  # wait till vsync/start of frame
+                If(self.sof,
+                   NextState("IDLE")
+                )
+            )
+
         self.comb += [
             self.dma.sink.address.eq(base + offset),  # input to the DMA is an address of base + offset
             self.dma.source.connect(self.source)      # connect the DMA's output to the output of this module
@@ -182,7 +219,7 @@ class VideoOutCore(Module, AutoCSR):
             self.submodules.timing = timing = ClockDomainsRenamer(cd)(TimingGenerator())
         else:
             self.submodules.timing = timing = ClockDomainsRenamer(cd)(TimingGenerator(genlock_stream))
-        self.submodules.dma = dma = ClockDomainsRenamer(cd)(DMAReader(dram_port, fifo_depth))
+        self.submodules.dma = dma = ClockDomainsRenamer(cd)(DMAReader(dram_port, fifo_depth, genlock_stream))
 
         # ctrl path
         self.comb += timing.sink.valid.eq(initiator.source.valid) # if the CSR FIFO data is valid, timing may proceed
