@@ -27,7 +27,7 @@ datacapture_cls = {
 
 class HDMIIn(Module, AutoCSR):
     def __init__(self, pads, dram_port=None, n_dma_slots=2, fifo_depth=512, device="xc6",
-                 default_edid=_default_edid, clkin_freq=148.5e6, split_mmcm=False):
+                 default_edid=_default_edid, clkin_freq=148.5e6, split_mmcm=False, mode="ycbcr422"):
         if hasattr(pads, "scl"):
             self.submodules.edid = EDID(pads, default_edid)
         self.submodules.clocking = clocking_cls[device](pads, clkin_freq, split_mmcm)
@@ -82,7 +82,7 @@ class HDMIIn(Module, AutoCSR):
         ]
 
         if dram_port is not None:
-            self.submodules.frame = FrameExtraction(dram_port.dw, fifo_depth)
+            self.submodules.frame = FrameExtraction(dram_port.dw, fifo_depth, mode)
             self.comb += [
                 self.frame.valid_i.eq(self.syncpol.valid_o),
                 self.frame.de.eq(self.syncpol.de),

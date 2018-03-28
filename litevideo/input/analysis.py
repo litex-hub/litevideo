@@ -127,7 +127,7 @@ class ResolutionDetection(Module, AutoCSR):
 
 
 class FrameExtraction(Module, AutoCSR):
-    def __init__(self, word_width, fifo_depth):
+    def __init__(self, word_width, fifo_depth, mode="ycbcr422"):
         # in pix clock domain
         self.valid_i = Signal()
         self.vsync = Signal()
@@ -145,67 +145,95 @@ class FrameExtraction(Module, AutoCSR):
 
         # # #
 
-        de_r = Signal()
-        self.sync.pix += de_r.eq(self.de)
-
-        rgb2ycbcr = RGB2YCbCr()
-        self.submodules += ClockDomainsRenamer("pix")(rgb2ycbcr)
-        chroma_downsampler = YCbCr444to422()
-        self.submodules += ClockDomainsRenamer("pix")(chroma_downsampler)
-        self.comb += [
-            rgb2ycbcr.sink.valid.eq(self.valid_i),
-            rgb2ycbcr.sink.r.eq(self.r),
-            rgb2ycbcr.sink.g.eq(self.g),
-            rgb2ycbcr.sink.b.eq(self.b),
-            rgb2ycbcr.source.connect(chroma_downsampler.sink),
-            chroma_downsampler.source.ready.eq(1),
-            chroma_downsampler.datapath.first.eq(self.de & ~de_r) # XXX need clean up
-        ]
-        # XXX need clean up
-        de = self.de
-        vsync = self.vsync
-        for i in range(rgb2ycbcr.latency + chroma_downsampler.latency):
-            next_de = Signal()
-            next_vsync = Signal()
-            self.sync.pix += [
-                next_de.eq(de),
-                next_vsync.eq(vsync)
-            ]
-            de = next_de
-            vsync = next_vsync
-
         # start of frame detection
+        vsync = self.vsync
         vsync_r = Signal()
-        new_frame = Signal()
+        self.new_frame = new_frame = Signal()
         self.comb += new_frame.eq(vsync & ~vsync_r)
         self.sync.pix += vsync_r.eq(vsync)
 
-        # pack pixels into words
-        cur_word = Signal(word_width)
-        cur_word_valid = Signal()
-        encoded_pixel = Signal(16)
-        self.comb += encoded_pixel.eq(Cat(chroma_downsampler.source.y,
-                                          chroma_downsampler.source.cb_cr)),
-        pack_factor = word_width//16
-        assert(pack_factor & (pack_factor - 1) == 0)  # only support powers of 2
-        pack_counter = Signal(max=pack_factor)
-        self.sync.pix += [
-            cur_word_valid.eq(0),
-            If(new_frame,
-                cur_word_valid.eq(pack_counter == (pack_factor - 1)),
-                pack_counter.eq(0),
-            ).Elif(chroma_downsampler.source.valid & de,
-                [If(pack_counter == (pack_factor-i-1),
-                    cur_word[16*i:16*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
-                cur_word_valid.eq(pack_counter == (pack_factor - 1)),
-                pack_counter.eq(pack_counter + 1)
-            )
-        ]
+        if mode == "ycbcr422":
+            de_r = Signal()
+            self.sync.pix += de_r.eq(self.de)
+
+            rgb2ycbcr = RGB2YCbCr()
+            self.submodules += ClockDomainsRenamer("pix")(rgb2ycbcr)
+            chroma_downsampler = YCbCr444to422()
+            self.submodules += ClockDomainsRenamer("pix")(chroma_downsampler)
+            self.comb += [
+                rgb2ycbcr.sink.valid.eq(self.valid_i),
+                rgb2ycbcr.sink.r.eq(self.r),
+                rgb2ycbcr.sink.g.eq(self.g),
+                rgb2ycbcr.sink.b.eq(self.b),
+                rgb2ycbcr.source.connect(chroma_downsampler.sink),
+                chroma_downsampler.source.ready.eq(1),
+                chroma_downsampler.datapath.first.eq(self.de & ~de_r) # XXX need clean up
+            ]
+            # XXX need clean up
+            de = self.de
+            for i in range(rgb2ycbcr.latency + chroma_downsampler.latency):
+                next_de = Signal()
+                next_vsync = Signal()
+                self.sync.pix += [
+                    next_de.eq(de),
+                    next_vsync.eq(vsync)
+                ]
+                de = next_de
+                vsync = next_vsync
+
+
+            # pack pixels into words
+            self.cur_word = cur_word = Signal(word_width)
+            self.cur_word_valid = cur_word_valid = Signal()
+            encoded_pixel = Signal(16)
+            self.comb += encoded_pixel.eq(Cat(chroma_downsampler.source.y,
+                                              chroma_downsampler.source.cb_cr)),
+            pack_factor = word_width//16
+            assert(pack_factor & (pack_factor - 1) == 0)  # only support powers of 2
+            self.pack_counter = pack_counter = Signal(max=pack_factor)
+            self.sync.pix += [
+                cur_word_valid.eq(0),
+                If(new_frame,
+                    cur_word_valid.eq(pack_counter == (pack_factor - 1)),
+                    pack_counter.eq(0),
+                ).Elif(chroma_downsampler.source.valid & de,
+                    [If(pack_counter == (pack_factor-i-1),
+                        cur_word[16*i:16*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
+                    cur_word_valid.eq(pack_counter == (pack_factor - 1)),
+                    pack_counter.eq(pack_counter + 1)
+                )
+            ]
+        else: # rgb case...should probably rewrite to call out unsupported modes instead of defaulting to rgb
+            de = self.de
+
+            # pack pixels into words
+            self.cur_word = cur_word = Signal(word_width)
+            self.cur_word_valid = cur_word_valid = Signal()
+            encoded_pixel = Signal(32)
+            dummy8 = Signal(8)
+            self.comb += encoded_pixel.eq(Cat(self.b,self.g,self.r, dummy8)),
+            pack_factor = word_width//32
+            assert(pack_factor & (pack_factor - 1) == 0)  # only support powers of 2
+            self.pack_counter = pack_counter = Signal(max=pack_factor)
+            self.sync.pix += [
+                cur_word_valid.eq(0),
+                If(new_frame,
+                    cur_word_valid.eq(pack_counter == (pack_factor - 1)),
+                    pack_counter.eq(0),
+                ).Elif(self.valid_i & de,
+                    [If(pack_counter == (pack_factor-i-1),
+                        cur_word[32*i:32*(i+1)].eq(encoded_pixel)) for i in range(pack_factor)],
+                    cur_word_valid.eq(pack_counter == (pack_factor - 1)),
+                    pack_counter.eq(pack_counter + 1)
+                )
+            ]
+
 
         # FIFO
         fifo = stream.AsyncFIFO(word_layout, fifo_depth)
         fifo = ClockDomainsRenamer({"write": "pix", "read": "sys"})(fifo)
         self.submodules += fifo
+        self.fifo = fifo
         self.comb += [
             fifo.sink.pixels.eq(cur_word),
             fifo.sink.valid.eq(cur_word_valid)
