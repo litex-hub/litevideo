@@ -10,7 +10,7 @@ from litevideo.csc.ycbcr444to422 import YCbCr444to422
 
 
 class SyncPolarity(Module):
-    def __init__(self):
+    def __init__(self, hdmi=False):
         self.valid_i = Signal()
         self.data_in0 = Record(channel_layout)
         self.data_in1 = Record(channel_layout)
@@ -30,7 +30,11 @@ class SyncPolarity(Module):
 
         # # #
 
-        self.de_int = self.data_in0.de
+        if hdmi:
+            self.de_int = Signal() # we assume de_int is assigned externally
+        else:
+            self.de_int = self.data_in0.de
+
         self.de_r = Signal()
         self.c = self.data_in0.c
         self.c_polarity = Signal(2)
