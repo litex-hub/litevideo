@@ -1,7 +1,10 @@
 from migen import *
 
+from migen.genlib.cdc import MultiReg
+
 from litevideo.input.common import control_tokens, channel_layout
 from litex.soc.interconnect import stream
+from litex.soc.interconnect.csr import *
 
 data_gb_tokens = [0b0100110011]
 
@@ -150,7 +153,7 @@ class DecodeTERC4Channel(Module):
             ]
 
 
-class DecodeTERC4(Module):
+class DecodeTERC4(Module, AutoCSR):
     def __init__(self):
         self.valid_i = Signal()
         self.data_in0 = Record(channel_layout)
@@ -158,9 +161,25 @@ class DecodeTERC4(Module):
         self.data_in2 = Record(channel_layout)
 
         self.de_o = Signal()
+        self.de_hdmi = Signal()
         self.encoding_terc4 = Signal()  # 1 if encoding terc4, 0 if encoding hdmi
         self.encrypting_video = Signal()
         self.encrypting_data = Signal()
+
+        self.dvimode = CSRStorage()  # a bit to select DVI mode "de" detection
+        dvimode_bit = Signal()
+        self.specials += MultiReg(self.dvimode.storage, dvimode_bit)
+        self.de_r = Signal()
+        self.sync.pix += [
+            self.de_r.eq(self.data_in0.de)  # delay one clock to match the HDMI pipe latency
+        ]
+        self.comb += [
+            If(dvimode_bit,
+                self.de_o.eq(self.de_r)
+            ).Else(
+                self.de_o.eq(self.de_hdmi)
+            )
+        ]
 
         # derive video, data guardbands and control codes
         for datan in range(3):
@@ -199,7 +218,7 @@ class DecodeTERC4(Module):
                 self.encoding_terc4.eq(0),
                 self.encrypting_data.eq(0),
                 self.encrypting_video.eq(0),
-                self.de_o.eq(0)
+                self.de_hdmi.eq(0)
             )
         fsm.act("PREAM_T4",
                 If(all_vgb,
@@ -214,7 +233,7 @@ class DecodeTERC4(Module):
                 self.encoding_terc4.eq(0),
                 self.encrypting_data.eq(0),
                 self.encrypting_video.eq(0),
-                self.de_o.eq(0)
+                self.de_hdmi.eq(0)
                 )
         fsm.act("GOING_T4",
                 If(c2c1_dgb,
@@ -225,7 +244,7 @@ class DecodeTERC4(Module):
                 self.encoding_terc4.eq(1),
                 self.encrypting_data.eq(0),
                 self.encrypting_video.eq(0),
-                self.de_o.eq(0)
+                self.de_hdmi.eq(0)
                 )
         fsm.act("TERC4",
                 If(any_cvalid,
@@ -240,7 +259,7 @@ class DecodeTERC4(Module):
                 self.encoding_terc4.eq(1),
                 self.encrypting_data.eq(1),
                 self.encrypting_video.eq(0),
-                self.de_o.eq(0)
+                self.de_hdmi.eq(0)
                 )
         fsm.act("LEAVE_T4",
                 If(c2c1_dgb,
@@ -251,7 +270,7 @@ class DecodeTERC4(Module):
                 self.encoding_terc4.eq(1),
                 self.encrypting_data.eq(0),
                 self.encrypting_video.eq(0),
-                self.de_o.eq(0)
+                self.de_hdmi.eq(0)
                 )
         fsm.act("PREAM_VID",
                 If(self.ctl_code == 0b0001,
@@ -264,7 +283,7 @@ class DecodeTERC4(Module):
                 self.encoding_terc4.eq(0),
                 self.encrypting_data.eq(0),
                 self.encrypting_video.eq(0),
-                self.de_o.eq(0)
+                self.de_hdmi.eq(0)
                 )
         fsm.act("GOING_VID",
                 If(all_vgb,
@@ -275,7 +294,7 @@ class DecodeTERC4(Module):
                 self.encoding_terc4.eq(0),
                 self.encrypting_data.eq(0),
                 self.encrypting_video.eq(0),
-                self.de_o.eq(0)
+                self.de_hdmi.eq(0)
                 )
         fsm.act("VIDEO",
                 If(any_cvalid,
@@ -286,5 +305,5 @@ class DecodeTERC4(Module):
                 self.encoding_terc4.eq(0),
                 self.encrypting_data.eq(0),
                 self.encrypting_video.eq(1),
-                self.de_o.eq(1)
+                self.de_hdmi.eq(1)
                 )
