@@ -144,6 +144,7 @@ class S7Clocking(Module, AutoCSR):
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.734,
                 p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                # p_SS_EN="TRUE", p_SS_MODE="CENTER_LOW",
                 i_CLKIN1=clk_input_bufr, i_CLKFBIN=mmcm_fb_o, o_CLKFBOUT=mmcm_fb,
 
                 # pix clk
