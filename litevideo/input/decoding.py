@@ -14,6 +14,25 @@ video_gb_tokens = [
     0b1011001100,  # channel 2 token
 ]
 
+terc4_tokens = [
+    0b1010011100,
+    0b1001100011,
+    0b1011100100,
+    0b1011100010,
+    0b0101110001,
+    0b0100011110,
+    0b0110001110,
+    0b0100111100,
+    0b1011001100,
+    0b0100111001,
+    0b0110011100,
+    0b1011000110,
+    0b1010001110,
+    0b1001110001,
+    0b0101100011,
+    0b1011000011,
+]
+
 class Decoding(Module):
     def __init__(self):
         self.valid_i = Signal()
@@ -37,7 +56,7 @@ class Decoding(Module):
                                                  ~self.input[8])
         self.sync.pix += self.valid_o.eq(self.valid_i)
 
-terc4_layout = [("c", 2), ("de", 1), ("dgb", 1), ("vgb", 1), ("c_valid", 1)]
+terc4_layout = [("c", 2), ("de", 1), ("dgb", 1), ("vgb", 1), ("c_valid", 1), ("d", 4)]
 
 class DecodeTERC4Channel(Module):
     def __init__(self, channel):
@@ -45,6 +64,14 @@ class DecodeTERC4Channel(Module):
         self.data_in = Record(channel_layout)  # data input from chansync
         self.valid_in = Signal()  # valid input from chansync &|
 
+        # decode the data path
+        ### NOTE NOTE NOTE THIS IS UNTESTED
+        for i, t in enumerate(terc4_tokens):
+            self.sync.pix += If(self.data_in.raw == t,
+                self.decval.d.eq(i)
+            )
+
+        # decode the control signals
         if channel != 1:
             self.sync.pix += [
                 If(self.valid_in,
