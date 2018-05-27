@@ -39,7 +39,12 @@ class EDID(Module, AutoCSR):
 
         # HPD
         if hasattr(pads, "hpd_notif"):
-            self.specials += MultiReg(pads.hpd_notif, self._hpd_notif.status)
+            if hasattr(getattr(pads, "hpd_notif"), "inverted"):
+                hpd_notif_n = Signal()
+                self.comb += hpd_notif_n.eq(~pads.hpd_notif)
+                self.specials += MultiReg(hpd_notif_n, self._hpd_notif.status)
+            else:
+                self.specials += MultiReg(pads.hpd_notif, self._hpd_notif.status)
         else:
             self.comb += self._hpd_notif.status.eq(1)
         if hasattr(pads, "hpd_en"):
