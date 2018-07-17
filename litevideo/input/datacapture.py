@@ -1,5 +1,5 @@
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc import MultiReg, PulseSynchronizer, BusSynchronizer
 from migen.genlib.misc import WaitTimer
 from migen.genlib.cdc import MultiReg, Gearbox
 
@@ -261,6 +261,8 @@ class S7DataCapture(Module, AutoCSR):
         self._dly_ctl = CSR(5)
         self._phase = CSRStatus(2)
         self._phase_reset = CSR()
+        self._cntvalueout_m = CSRStatus(5)
+        self._cntvalueout_s = CSRStatus(5)
 
         # # #
 
@@ -286,6 +288,7 @@ class S7DataCapture(Module, AutoCSR):
         serdes_m_i_delayed = Signal()
         serdes_m_q = Signal(8)
         serdes_m_d = Signal(8)
+        serdes_m_cntvalue = Signal(5)
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
@@ -298,7 +301,8 @@ class S7DataCapture(Module, AutoCSR):
                 i_CE=delay_master_ce,
                 i_LDPIPEEN=0, i_INC=delay_master_inc,
 
-                i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed
+                i_IDATAIN=serdes_m_i_nodelay, o_DATAOUT=serdes_m_i_delayed,
+                o_CNTVALUEOUT=serdes_m_cntvalue
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=8, p_DATA_RATE="DDR",
@@ -324,6 +328,7 @@ class S7DataCapture(Module, AutoCSR):
         serdes_s_i_delayed = Signal()
         serdes_s_q = Signal(8)
         serdes_s_d = Signal(8)
+        serdes_s_cntvalue = Signal(5)
         self.specials += [
             Instance("IDELAYE2",
                 p_DELAY_SRC="IDATAIN", p_SIGNAL_PATTERN="DATA",
@@ -336,7 +341,8 @@ class S7DataCapture(Module, AutoCSR):
                 i_CE=delay_slave_ce,
                 i_LDPIPEEN=0, i_INC=delay_slave_inc,
 
-                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed
+                i_IDATAIN=serdes_s_i_nodelay, o_DATAOUT=serdes_s_i_delayed,
+                o_CNTVALUEOUT=serdes_s_cntvalue
             ),
             Instance("ISERDESE2",
                 p_DATA_WIDTH=8, p_DATA_RATE="DDR",
@@ -354,6 +360,16 @@ class S7DataCapture(Module, AutoCSR):
                 o_Q4=serdes_s_q[4], o_Q3=serdes_s_q[5],
                 o_Q2=serdes_s_q[6], o_Q1=serdes_s_q[7]
             ),
+        ]
+
+        # cntvalue sync
+        self.submodules.sync_mcntvalue = BusSynchronizer(5, "pix1p25x", "sys")
+        self.submodules.sync_scntvalue = BusSynchronizer(5, "pix1p25x", "sys")
+        self.comb += [
+            self.sync_mcntvalue.i.eq(serdes_m_cntvalue),
+            self._cntvalueout_m.status.eq(self.sync_mcntvalue.o),
+            self.sync_scntvalue.i.eq(serdes_s_cntvalue),
+            self._cntvalueout_s.status.eq(self.sync_scntvalue.o),
         ]
 
         # polarity
