@@ -101,16 +101,16 @@ class S7Clocking(Module, AutoCSR):
 
         self.locked = Signal()
         self.clock_domains.cd_pix = ClockDomain()
-        self.clock_domains.cd_pix_o = ClockDomain()
         self.clock_domains.cd_pix1p25x = ClockDomain()
         self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
-        self.clock_domains.cd_pix5x_o = ClockDomain(reset_less=True)
 
         if split_clocking:
             self._mmcm_write_o = CSR()
             self._mmcm_read_o = CSR()
             self._mmcm_dat_o_r = CSRStatus(16)
             self._mmcm_drdy_o = CSRStatus()
+            self.clock_domains.cd_pix_o = ClockDomain()
+            self.clock_domains.cd_pix5x_o = ClockDomain(reset_less=True)
 
         # # #
 
@@ -144,6 +144,7 @@ class S7Clocking(Module, AutoCSR):
                 # VCO
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.734,
                 p_CLKFBOUT_MULT_F=5.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                # p_SS_EN="TRUE", p_SS_MODE="CENTER_LOW",
                 i_CLKIN1=clk_input_bufr, i_CLKFBIN=mmcm_fb_o, o_CLKFBOUT=mmcm_fb,
 
                 # pix clk
@@ -163,7 +164,7 @@ class S7Clocking(Module, AutoCSR):
                 o_DO=self._mmcm_dat_r.status
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
-            Instance("BUFR", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
+            Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
             Instance("BUFIO",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
             Instance("BUFG", i_I=mmcm_fb, o_O=mmcm_fb_o), # compensate this delay to minimize phase offset with slave
         ]
@@ -189,13 +190,13 @@ class S7Clocking(Module, AutoCSR):
 
                     # VCO
                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=6.734,
-                    p_CLKFBOUT_MULT=5, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1,
+                    p_CLKFBOUT_MULT=10, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=1, # PLL range is 800-1866 MHz, unlike MMCM which is 600-1440 MHz
                     i_CLKIN1=mmcm_clk0,  # uncompensated delay for best phase match between master/slave
                     i_CLKFBIN=mmcm_fb2_o, o_CLKFBOUT=mmcm_fb2_o,
 
                     # pix clk
-                    p_CLKOUT0_DIVIDE=5, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
-                    p_CLKOUT2_DIVIDE=1, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2_o,
+                    p_CLKOUT0_DIVIDE=10, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
+                    p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2_o,
 
                     # DRP
                     i_DCLK=ClockSignal(),
@@ -217,11 +218,6 @@ class S7Clocking(Module, AutoCSR):
                     self._mmcm_drdy_o.status.eq(1)
                 )
             ]
-        else:
-            self.comb += [
-                self.cd_pix_o.clk.eq(self.cd_pix.clk),
-                self.cd_pix5x_o.clk.eq(self.cd_pix5x.clk)
-            ]
 
         self.specials += MultiReg(mmcm_locked, self.locked, "sys")
         self.comb += self._locked.status.eq(self.locked)
@@ -233,6 +229,4 @@ class S7Clocking(Module, AutoCSR):
 
         if split_clocking:
             self.specials += AsyncResetSynchronizer(self.cd_pix_o, ~mmcm_locked_o)
-        else:
-            self.comb += self.cd_pix_o.rst.eq(self.cd_pix.rst)
 
