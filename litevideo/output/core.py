@@ -182,8 +182,34 @@ class TimingGenerator(Module):
                 )
         else:
             self.comb += genlock_stream.connect(self.source)
+'''
+	#crop 
 
+      		    If(hcounter >== 90 , stream.data) # pass the data for hcounter >==90 
+		    If(hcounter <== sink.hres - 90 , stream.data) # hres is the horizontal resolution: 1024 if we have 1024 X 768 resolution
+			.Else(stream.data.eq(0)) #otherwise no data is passed 
+                    If(hcounter == sink.hsync_start, source.hsync.eq(1)),
+                    If(hcounter == sink.hsync_end, source.hsync.eq(0)),
+                    If(hcounter == sink.hscan,  # if we hit the end of the line
+                        hcounter.eq(0),  # reset the counter, overriding the +1 earlier coz this is a "blocking" syntax
+                        If(vcounter == sink.vscan,
+                            vcounter.eq(0),
+                            source.last.eq(1)
+                        ).Else(
+                            vcounter.eq(vcounter + 1)
+                        )
+                    ),
 
+                    If(vcounter >== 70 , stream.data)#pass the data for vcounter greater than 70
+                    If(vcounter >== sink.vres - 70 , stream.data) # vres is the vertical resolution
+		     .Else(stream.data.eq(0)) #otherwise no data is passed 
+                    If(vcounter == sink.vsync_start, source.vsync.eq(1)),
+                    If(vcounter == sink.vsync_end, source.vsync.eq(0))
+                )
+        else:
+            self.comb += genlock_stream.connect(self.source)
+
+'''
 
 modes_dw = {
     "raw":      32,
