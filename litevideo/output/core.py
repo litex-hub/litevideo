@@ -183,7 +183,7 @@ class TimingGenerator(Module):
         else:
             self.comb += genlock_stream.connect(self.source)
 '''
-	#crop 
+	
 
       		    If(hcounter >== 90 , stream.data) # pass the data for hcounter >==90 
 		    If(hcounter <== sink.hres - 90 , stream.data) # hres is the horizontal resolution: 1024 if we have 1024 X 768 resolution
