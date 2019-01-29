@@ -101,16 +101,16 @@ class S7Clocking(Module, AutoCSR):
 
         self.locked = Signal()
         self.clock_domains.cd_pix = ClockDomain()
+        self.clock_domains.cd_pix_o = ClockDomain()
         self.clock_domains.cd_pix1p25x = ClockDomain()
         self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
+        self.clock_domains.cd_pix5x_o = ClockDomain(reset_less=True)
 
         if split_clocking:
             self._mmcm_write_o = CSR()
             self._mmcm_read_o = CSR()
             self._mmcm_dat_o_r = CSRStatus(16)
             self._mmcm_drdy_o = CSRStatus()
-            self.clock_domains.cd_pix_o = ClockDomain()
-            self.clock_domains.cd_pix5x_o = ClockDomain(reset_less=True)
 
         # # #
 
@@ -218,6 +218,11 @@ class S7Clocking(Module, AutoCSR):
                     self._mmcm_drdy_o.status.eq(1)
                 )
             ]
+        else:
+            self.comb += [
+                self.cd_pix_o.clk.eq(self.cd_pix.clk),
+                self.cd_pix5x_o.clk.eq(self.cd_pix5x.clk)
+            ]
 
         self.specials += MultiReg(mmcm_locked, self.locked, "sys")
         self.comb += self._locked.status.eq(self.locked)
@@ -229,4 +234,6 @@ class S7Clocking(Module, AutoCSR):
 
         if split_clocking:
             self.specials += AsyncResetSynchronizer(self.cd_pix_o, ~mmcm_locked_o)
+        else:
+            self.comb += self.cd_pix_o.rst.eq(self.cd_pix.rst)
 
