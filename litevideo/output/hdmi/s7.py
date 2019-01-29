@@ -12,7 +12,7 @@ from litevideo.output.hdmi.encoder import Encoder
 class S7HDMIOutEncoderSerializer(Module):
     def __init__(self, pad_p, pad_n, bypass_encoder=False):
         if not bypass_encoder:
-            self.submodules.encoder = ClockDomainsRenamer("pix_o")(Encoder())
+            self.submodules.encoder = ClockDomainsRenamer("pix")(Encoder())
             self.d, self.c, self.de = self.encoder.d, self.encoder.c, self.encoder.de
             self.data = self.encoder.out
         else:
@@ -27,7 +27,7 @@ class S7HDMIOutEncoderSerializer(Module):
             self.comb += data.eq(self.data)
 
         ce = Signal()
-        self.sync.pix_o += ce.eq(~ResetSignal("pix_o"))
+        self.sync.pix += ce.eq(~ResetSignal("pix"))
 
         shift = Signal(2)
         pad_se = Signal()
@@ -42,8 +42,8 @@ class S7HDMIOutEncoderSerializer(Module):
                 o_OQ=pad_se,
                 i_OCE=ce,
                 i_TCE=0,
-                i_RST=ResetSignal("pix_o"),
-                i_CLK=ClockSignal("pix5x_o"), i_CLKDIV=ClockSignal("pix_o"),
+                i_RST=ResetSignal("pix"),
+                i_CLK=ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_D1=data[0], i_D2=data[1],
                 i_D3=data[2], i_D4=data[3],
                 i_D5=data[4], i_D6=data[5],
@@ -59,8 +59,8 @@ class S7HDMIOutEncoderSerializer(Module):
 
                 i_OCE=ce,
                 i_TCE=0,
-                i_RST=ResetSignal("pix_o"),
-                i_CLK=ClockSignal("pix5x_o"), i_CLKDIV=ClockSignal("pix_o"),
+                i_RST=ResetSignal("pix"),
+                i_CLK=ClockSignal("pix5x"), i_CLKDIV=ClockSignal("pix"),
                 i_D1=0, i_D2=0,
                 i_D3=data[8], i_D4=data[9],
                 i_D5=0, i_D6=0,
