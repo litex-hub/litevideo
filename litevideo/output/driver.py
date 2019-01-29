@@ -60,4 +60,4 @@ class Driver(Module, AutoCSR):
             self.submodules.hdmi_phy = hdmi_phy_cls[family](pads, mode)
             if hasattr(self.hdmi_phy, "serdesstrobe"):
                 self.comb += self.hdmi_phy.serdesstrobe.eq(self.clocking.serdesstrobe)
-                self.comb += sink.connect(self.hdmi_phy.sink)
+            self.comb += sink.connect(self.hdmi_phy.sink)
