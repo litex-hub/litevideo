@@ -17,18 +17,16 @@ class _Slot(Module, AutoCSR):
         self.address_done = Signal()
 
         self._status = CSRStorage(2, write_from_dev=True)
-        self._address = CSRStorage(addr_bits + alignment_bits,
-                                   alignment_bits=alignment_bits,
-                                   write_from_dev=True)
+        self._address = CSRStorage(addr_bits + alignment_bits, write_from_dev=True)
 
         # # #
 
         self.comb += [
-            self.address.eq(self._address.storage),
+            self.address.eq(self._address.storage[alignment_bits:]),
             self.address_valid.eq(self._status.storage[0]),
             self._status.dat_w.eq(2),
             self._status.we.eq(self.address_done),
-            self._address.dat_w.eq(self.address_reached),
+            self._address.dat_w[alignment_bits:].eq(self.address_reached),
             self._address.we.eq(self.address_done),
             self.ev_source.trigger.eq(self._status.storage[1])
         ]
@@ -73,8 +71,7 @@ class DMA(Module):
 
         fifo_word_width = bus_dw
         self.frame = stream.Endpoint([("sof", 1), ("pixels", fifo_word_width)])
-        self._frame_size = CSRStorage(bus_aw + alignment_bits,
-                                      alignment_bits=alignment_bits)
+        self._frame_size = CSRStorage(bus_aw + alignment_bits)
         self.submodules._slot_array = _SlotArray(nslots, bus_aw, alignment_bits)
         self.ev = self._slot_array.ev
 
@@ -94,7 +91,7 @@ class DMA(Module):
         self.sync += [
             If(reset_words,
                 current_address.eq(self._slot_array.address),
-                mwords_remaining.eq(self._frame_size.storage)
+                mwords_remaining.eq(self._frame_size.storage[alignment_bits:])
             ).Elif(count_word,
                 current_address.eq(current_address + 1),
                 mwords_remaining.eq(mwords_remaining - 1)
