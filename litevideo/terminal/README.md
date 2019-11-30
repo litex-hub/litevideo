@@ -19,15 +19,15 @@ from litevideo.terminal.core import Terminal
 .
         # Create VGA terminal
         self.mem_map["terminal"] = 0x30000000
-        self.submodules.terminal = terminal = Terminal(crg.cd_vga.clk)
+        self.submodules.terminal = terminal = Terminal()
         self.add_wb_slave(mem_decoder(self.mem_map["terminal"]), self.terminal.bus)
         self.add_memory_region("terminal", self.mem_map["terminal"], 0x10000)
 
         # Connect VGA pins
         vga = platform.request("vga", 0)
         self.comb += [
-            vga.vsync.eq(terminal.vga_vsync),
-            vga.hsync.eq(terminal.vga_hsync),
+            vga.vsync.eq(terminal.vsync),
+            vga.hsync.eq(terminal.hsync),
             vga.red.eq(terminal.red[2:8]),
             vga.green.eq(terminal.green[2:8]),
             vga.blue.eq(terminal.blue[2:8])

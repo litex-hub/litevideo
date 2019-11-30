@@ -56,10 +56,7 @@ def read_ram_init_file(filename, size):
 # Terminal -----------------------------------------------------------------------------------------
 
 class Terminal(Module):
-    def __init__(self, vga_clk, font_filename="cp437.bin", screen_init_filename="screen-init.bin"):
-        self.clock_domains.cd_vga = ClockDomain()
-        self.comb += self.cd_vga.clk.eq(vga_clk)
-
+    def __init__(self, pads=None, font_filename="cp437.bin", screen_init_filename="screen-init.bin"):
         # Wishbone interface
         self.bus = bus = wishbone.Interface(data_width=8)
 
@@ -100,11 +97,11 @@ class Terminal(Module):
         FONT_ADDR = 80 * 30 * 2
 
         # VGA output
-        red       = Signal(8)
-        green     = Signal(8)
-        blue      = Signal(8)
-        vga_hsync = Signal()
-        vga_vsync = Signal()
+        self.red   = red   = Signal(8) if pads is None else pads.red
+        self.green = green = Signal(8) if pads is None else pads.green
+        self.blue  = blue  = Signal(8) if pads is None else pads.blue
+        self.hsync = hsync = Signal()  if pads is None else pads.hsync
+        self.vsync = vsync = Signal()  if pads is None else pads.vsync
 
         # CPU interface
         vsync = Signal()
@@ -225,9 +222,9 @@ class Terminal(Module):
             # Horizontal timing for one line
             pixel_counter.eq(pixel_counter + 1),
             If(pixel_counter < H_SYNC_PULSE,
-                vga_hsync.eq(0)
+                hsync.eq(0)
             ).Elif (pixel_counter < H_BACK_PORCH,
-                vga_hsync.eq(1)
+                hsync.eq(1)
             ),
             If(pixel_counter == H_BACK_PORCH - 9,
                 # Prepare reading first character of next line
@@ -249,11 +246,9 @@ class Terminal(Module):
 
             # Vertical timing for one screen
             If(line_counter < V_SYNC_PULSE,
-                vga_vsync.eq(0),
-                vsync.eq(1)
-            ).Elif(line_counter < V_BACK_PORCH,
-                vga_vsync.eq(1),
                 vsync.eq(0)
+            ).Elif(line_counter < V_BACK_PORCH,
+                vsync.eq(1)
             ),
             If(line_counter == V_FRONT_PORCH,
                 # End of image
