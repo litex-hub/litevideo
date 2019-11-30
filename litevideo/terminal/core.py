@@ -104,7 +104,6 @@ class Terminal(Module):
         self.vsync = vsync = Signal()  if pads is None else pads.vsync
 
         # CPU interface
-        vsync = Signal()
 
         H_SYNC_PULSE  = 96
         H_BACK_PORCH  = 48 + H_SYNC_PULSE
