@@ -13,18 +13,18 @@ You can specify the text initialization and the font file with the . If an empty
 The VGA output signals are 24 bit true color, but you don't need to connect all bits. Example usage with only 6 bits per color component:
 
 ```
-from litex.soc.cores.terminal.core import Terminal
+from litevideo.terminal.core import Terminal
 .
 .
 .
-		# create VGA terminal
-        self.mem_map['terminal'] = 0x30000000
+        # Create VGA terminal
+        self.mem_map["terminal"] = 0x30000000
         self.submodules.terminal = terminal = Terminal(crg.cd_vga.clk)
         self.add_wb_slave(mem_decoder(self.mem_map["terminal"]), self.terminal.bus)
         self.add_memory_region("terminal", self.mem_map["terminal"], 0x10000)
 
-        # connect VGA pins
-        vga = platform.request('vga', 0)
+        # Connect VGA pins
+        vga = platform.request("vga", 0)
         self.comb += [
             vga.vsync.eq(terminal.vga_vsync),
             vga.hsync.eq(terminal.vga_hsync),
