@@ -103,8 +103,7 @@ class Terminal(Module):
         self.hsync = hsync = Signal()  if pads is None else pads.hsync
         self.vsync = vsync = Signal()  if pads is None else pads.vsync
 
-        # CPU interface
-
+        # VGA timings
         H_SYNC_PULSE  = 96
         H_BACK_PORCH  = 48 + H_SYNC_PULSE
         H_DATA        = WIDTH + H_BACK_PORCH
