@@ -10,7 +10,7 @@ from litex.soc.interconnect import wishbone
 # Terminal emulation with 640 x 480 pixels, 80 x 30 characters,
 # individual foreground and background color per character (VGA palette)
 # and user definable font, with code page 437 VGA font initialized.
-# 60 Hz framerate, if clk is 25.175 MHz. Independent system clock possible,
+# 60 Hz framerate, if vga_clk is 25.175 MHz. Independent system clock possible,
 # internal dual-port block RAM.
 #
 # Memory layout:
@@ -52,9 +52,9 @@ def read_ram_init_file(filename, size):
 
 # main class
 class Terminal(Module):
-    def __init__(self, clk, font_filename = 'cp437.bin', screen_init_filename = 'screen-init.bin'):
-        self.clock_domains.cd_clk = ClockDomain()
-        self.comb += self.cd_clk.clk.eq(clk)
+    def __init__(self, vga_clk, font_filename = 'cp437.bin', screen_init_filename = 'screen-init.bin'):
+        self.clock_domains.cd_vga = ClockDomain()
+        self.comb += self.cd_vga.clk.eq(vga_clk)
 
         # Wishbone interface
         self.bus = bus = wishbone.Interface(data_width = 8)
@@ -75,7 +75,7 @@ class Terminal(Module):
         self.specials += mem
         wrport = mem.get_port(write_capable=True, clock_domain="sys")
         self.specials += wrport
-        rdport = mem.get_port(write_capable=False, clock_domain="clk")
+        rdport = mem.get_port(write_capable=False, clock_domain="vga")
         self.specials += rdport
 
         # memory map internal block RAM to Wishbone interface
@@ -158,7 +158,7 @@ class Terminal(Module):
             cases[i] = color_lookup.eq(palette[i])
         self.comb += Case(color_index, cases)
 
-        self.sync.clk += [
+        self.sync.vga += [
             # default values
             red.eq(0),
             green.eq(0),
