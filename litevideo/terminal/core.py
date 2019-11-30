@@ -50,7 +50,7 @@ def read_ram_init_file(filename, size):
             raise ValueError("Invalid size for file {}. Expected size: {}, actual size: {}".format(filename, size, len(data)))
         return data
 
-# main class    
+# main class
 class Terminal(Module):
     def __init__(self, clk, font_filename = 'cp437.bin', screen_init_filename = 'screen-init.bin'):
         self.clock_domains.cd_clk = ClockDomain()
@@ -64,14 +64,14 @@ class Terminal(Module):
             bus.ack.eq(0),
             If (bus.cyc & bus.stb & ~bus.ack, bus.ack.eq(1))
         ]
-        
+
         # RAM initialization
         screen_init = read_ram_init_file(screen_init_filename, 4800)
         font = read_ram_init_file(font_filename, 4096)
         ram_init = screen_init + font
 
         # create RAM
-        self.mem = mem = Memory(width=8, depth=8896, init = ram_init)
+        mem = Memory(width=8, depth=8896, init = ram_init)
         self.specials += mem
         wrport = mem.get_port(write_capable=True, clock_domain="sys")
         self.specials += wrport
@@ -96,15 +96,15 @@ class Terminal(Module):
         FONT_ADDR = 80 * 30 * 2
 
         # VGA output
-        self.red = red = Signal(8)
-        self.green = green = Signal(8)
-        self.blue = blue = Signal(8)
-        self.vga_hsync = vga_hsync = Signal()
-        self.vga_vsync = vga_vsync = Signal()
+        red = Signal(8)
+        green = Signal(8)
+        blue = Signal(8)
+        vga_hsync = Signal()
+        vga_vsync = Signal()
 
         # CPU interface
-        self.vsync = vsync = Signal()
-        
+        vsync = Signal()
+
         H_SYNC_PULSE = 96
         H_BACK_PORCH = 48 + H_SYNC_PULSE
         H_DATA = WIDTH + H_BACK_PORCH
@@ -119,16 +119,16 @@ class Terminal(Module):
         line_counter = Signal(10)
 
         # read address in text RAM
-        self.text_addr = text_addr = Signal(16)
-        
+        text_addr = Signal(16)
+
         # read address in text RAM at line start
-        self.text_addr_start = text_addr_start = Signal(16)
-        
+        text_addr_start = Signal(16)
+
         # current line within a character, 0 to 15
-        self.fline = fline = Signal(4)
+        fline = Signal(4)
 
         # current x position within a character, 0 to 7
-        self.fx = fx = Signal(3)
+        fx = Signal(3)
 
         # current and next byte for a character line
         fbyte = Signal(8)
@@ -137,7 +137,7 @@ class Terminal(Module):
         # current foreground color
         fgcolor = Signal(24)
         next_fgcolor = Signal(24)
-        
+
         # current background color
         bgcolor = Signal(24)
 
@@ -163,7 +163,7 @@ class Terminal(Module):
             red.eq(0),
             green.eq(0),
             blue.eq(0),
-            
+
             # show pixels
             If ((line_counter >= V_BACK_PORCH) & (line_counter < V_DATA),
                 If ((pixel_counter >= H_BACK_PORCH) & (pixel_counter < H_DATA),
