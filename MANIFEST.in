@@ -1,0 +1,2 @@
+include litevideo/terminal/cp437.bin
+include litevideo/terminal/screen-init.bin
