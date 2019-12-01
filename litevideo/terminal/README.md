@@ -6,7 +6,7 @@ The RAM initialization also contains a test image. If all VGA signals are wired 
 
 ![Screenshot with init file](screenshot.jpg "Screenshot")
 
-The VGA standard requires a 25.175 MHz clock with +/- 0.5% accuracy, for a framerate of 60 Hz, but most displays don't have problems with 25 MHz. The VGA clock is independent of the system clock and can be higher or lower. Internally it uses dual-port block RAM for the text and font.
+The VGA standard requires a 25.175 MHz clock with +/- 0.5% accuracy (which you have to provide with a clock domain called `vga`), for a framerate of 60 Hz, but most displays don't have problems with 25 MHz. The VGA clock is independent of the system clock and can be higher or lower. Internally it uses dual-port block RAM for the text and font.
 
 You can specify the text initialization and the font file with the . If an empty string is passed, it is initialized with 0. The VGA palette is hard-coded in the terminal entity and is the same as the VGA palette in 16 color text mode.
 
@@ -17,6 +17,10 @@ from litevideo.terminal.core import Terminal
 .
 .
 .
+        # VGA clock domain
+        self.clock_domains.cd_vga = ClockDomain()
+        self.comb += self.cd_vga.clk.eq(clk_outs[2])
+
         # Create VGA terminal
         self.mem_map["terminal"] = 0x30000000
         self.submodules.terminal = terminal = Terminal()
