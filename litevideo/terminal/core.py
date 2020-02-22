@@ -80,13 +80,17 @@ class Terminal(Module):
         self.specials += rdport
 
         # Memory map internal block RAM to Wishbone interface
-        self.sync += [
+        self.sync += [        
             wrport.we.eq(0),
-            If (bus.cyc & bus.stb & bus.we,
+            If (bus.cyc & bus.stb & bus.we & ~bus.ack,
                 wrport.we.eq(1),
-                wrport.adr.eq(bus.adr),
                 wrport.dat_w.eq(bus.dat_w),
-            )
+            ),
+        ]
+        
+        self.comb += [
+            wrport.adr.eq(bus.adr),
+            bus.dat_r.eq(wrport.dat_r)
         ]
 
         # Display resolution
