@@ -16,7 +16,7 @@ class Initiator(Module, AutoCSR):
 
     Generates the H/V and DMA parameters of a frame.
 
-    CSR -> local clock domain via 2-deep FIFO. The FIFO is only read when the timing generator "pulls" it
+    CSR -> local clock domain via 4-deep FIFO. The FIFO is only read when the timing generator "pulls" it
     which I think allows for "intelligent" queueing of new values coming in (e.g. no mid-frame timing changes)
     """
     def __init__(self, cd): # CD is the clock domain of the dram port
@@ -25,7 +25,7 @@ class Initiator(Module, AutoCSR):
 
         # # #
 
-        cdc = stream.AsyncFIFO(self.source.description, 2)
+        cdc = stream.AsyncFIFO(self.source.description, 4)
         cdc = ClockDomainsRenamer({"write": "sys",
                                    "read": cd})(cdc)
         self.submodules += cdc
