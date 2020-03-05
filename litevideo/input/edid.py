@@ -65,10 +65,22 @@ class EDID(Module, AutoCSR):
         else:
             self.specials += MultiReg(pads.scl, scl_raw)
 
-        self.specials += [
-            Tristate(pads.sda, 0, _sda_drv_reg, _sda_i_async),
-            MultiReg(_sda_i_async, sda_raw)
-        ]
+        if hasattr(pads, "sda_pu") and hasattr(pads, "sda_pd"):
+            pad_sda = getattr(pads, "sda")
+            if hasattr(pad_sda, "inverted"):
+                self.specials += MultiReg(~pads.sda, sda_raw)
+            else:
+                self.specials += MultiReg(pads.sda, sda_raw)
+
+            self.comb += [
+                pads.sda_pu.eq(0),
+                pads.sda_pd.eq(_sda_drv_reg),
+            ]
+        else:
+            self.specials += [
+                Tristate(pads.sda, 0, _sda_drv_reg, _sda_i_async),
+                MultiReg(_sda_i_async, sda_raw),
+            ]
 
         # for debug
         self.scl = scl_raw
