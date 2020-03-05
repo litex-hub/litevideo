@@ -165,7 +165,7 @@ class S7Clocking(Module, AutoCSR):
             ),
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
             Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
-            Instance("BUFIO",i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
+            Instance("BUFG", i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
             Instance("BUFG", i_I=mmcm_fb, o_O=mmcm_fb_o), # compensate this delay to minimize phase offset with slave
         ]
 
