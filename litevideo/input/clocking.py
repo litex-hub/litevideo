@@ -104,7 +104,9 @@ class S7Clocking(Module, AutoCSR):
         self.clock_domains.cd_pix_o = ClockDomain()
         self.clock_domains.cd_pix1p25x = ClockDomain()
         self.clock_domains.cd_pix5x = ClockDomain(reset_less=True)
+        self.clock_domains.cd_pix5x_inv = ClockDomain(reset_less=True)
         self.clock_domains.cd_pix5x_o = ClockDomain(reset_less=True)
+        self.clock_domains.cd_pix5x_inv_o = ClockDomain(reset_less=True)
 
         if split_clocking:
             self._mmcm_write_o = CSR()
@@ -134,6 +136,7 @@ class S7Clocking(Module, AutoCSR):
         mmcm_clk0 = Signal()
         mmcm_clk1 = Signal()
         mmcm_clk2 = Signal()
+        mmcm_clk3 = Signal()
         mmcm_drdy = Signal()
         mmcm_fb_o = Signal() # this should be harmless in single domain, but essential for split
 
@@ -153,6 +156,8 @@ class S7Clocking(Module, AutoCSR):
                 p_CLKOUT1_DIVIDE=4, p_CLKOUT1_PHASE=0.000, o_CLKOUT1=mmcm_clk1,
                 # pix5x clk
                 p_CLKOUT2_DIVIDE=1, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2,
+                # pix5x inv clk
+                p_CLKOUT3_DIVIDE=1, p_CLKOUT3_PHASE=180.000, o_CLKOUT3=mmcm_clk3,
 
                 # DRP
                 i_DCLK=ClockSignal(),
@@ -166,6 +171,7 @@ class S7Clocking(Module, AutoCSR):
             Instance("BUFG", i_I=mmcm_clk0, o_O=self.cd_pix.clk),
             Instance("BUFG", i_I=mmcm_clk1, o_O=self.cd_pix1p25x.clk),
             Instance("BUFG", i_I=mmcm_clk2, o_O=self.cd_pix5x.clk),
+            Instance("BUFG", i_I=mmcm_clk3, o_O=self.cd_pix5x_inv.clk),
             Instance("BUFG", i_I=mmcm_fb, o_O=mmcm_fb_o), # compensate this delay to minimize phase offset with slave
         ]
 
@@ -182,6 +188,7 @@ class S7Clocking(Module, AutoCSR):
             mmcm_locked_o = Signal()
             mmcm_clk0_o = Signal()
             mmcm_clk2_o = Signal()
+            mmcm_clk3_o = Signal()
             mmcm_drdy_o = Signal()
 
             self.specials += [
@@ -197,6 +204,7 @@ class S7Clocking(Module, AutoCSR):
                     # pix clk
                     p_CLKOUT0_DIVIDE=10, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=mmcm_clk0_o,
                     p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=0.000, o_CLKOUT2=mmcm_clk2_o,
+                    p_CLKOUT3_DIVIDE=2, p_CLKOUT3_PHASE=180.000, o_CLKOUT3=mmcm_clk3_o,
 
                     # DRP
                     i_DCLK=ClockSignal(),
@@ -209,6 +217,7 @@ class S7Clocking(Module, AutoCSR):
                 ),
                 Instance("BUFG", i_I=mmcm_clk0_o, o_O=self.cd_pix_o.clk),
                 Instance("BUFG", i_I=mmcm_clk2_o, o_O=self.cd_pix5x_o.clk), # was BUFIO...
+                Instance("BUFG", i_I=mmcm_clk3_o, o_O=self.cd_pix5x_inv_o.clk),
             ]
 
             self.sync += [
@@ -221,7 +230,8 @@ class S7Clocking(Module, AutoCSR):
         else:
             self.comb += [
                 self.cd_pix_o.clk.eq(self.cd_pix.clk),
-                self.cd_pix5x_o.clk.eq(self.cd_pix5x.clk)
+                self.cd_pix5x_o.clk.eq(self.cd_pix5x.clk),
+                self.cd_pix5x_inv_o.clk.eq(self.cd_pix5x_inv.clk),
             ]
 
         self.specials += MultiReg(mmcm_locked, self.locked, "sys")
