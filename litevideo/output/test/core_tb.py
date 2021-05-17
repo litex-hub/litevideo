@@ -2,14 +2,14 @@ from migen import *
 
 from litex.soc.interconnect.stream import *
 
-from litedram.common import LiteDRAMPort
+from litedram.common import LiteDRAMNativePort
 
 from litevideo.output.core import VideoOutCore
 
 
 class TB(Module):
     def __init__(self):
-        self.dram_port = LiteDRAMPort(mode="read", aw=32, dw=32, cd="video")
+        self.dram_port = LiteDRAMNativePort(mode="read", address_width=32, data_width=32, clock_domain="video")
         self.submodules.core = VideoOutCore(self.dram_port)
         self.sync += \
             self.core.source.ready.eq(~self.core.source.ready)
@@ -41,7 +41,7 @@ class DRAMMemory:
                 pending = 0
             elif (yield dram_port.cmd.valid):
                 pending = not (yield dram_port.cmd.we)
-                address = (yield dram_port.cmd.adr)
+                address = (yield dram_port.cmd.addr)
                 yield
                 yield dram_port.cmd.ready.eq(1)
             yield
